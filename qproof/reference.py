@@ -59,19 +59,18 @@ def verify_amplitudes(
         return False, f"shape mismatch: {observed.shape} vs {expected.shape}"
     if not np.all(np.isfinite(observed)):
         return False, "observed amplitudes contain non-finite values"
-    # Remove global phase: align first non-zero component
-    obs = observed.copy()
-    exp = expected.copy()
+
+    # Align global phase using first component where both are non-negligible
+    obs = np.asarray(observed, dtype=np.complex128)
+    exp = np.asarray(expected, dtype=np.complex128)
+    phase = 1.0 + 0j
     for i in range(len(exp)):
         if abs(exp[i]) > tol and abs(obs[i]) > tol:
             phase = obs[i] / exp[i]
-            if abs(phase) > tol:
-                obs = obs / phase * abs(phase)  # unit-modulus phase only
-                # Better: divide by phase/|phase|
-                unit_phase = phase / abs(phase)
-                obs = observed / unit_phase
+            phase = phase / abs(phase)  # unit modulus
             break
-    diff = np.max(np.abs(obs - exp))
+    aligned = obs / phase
+    diff = float(np.max(np.abs(aligned - exp)))
     if diff > tol:
         return False, f"max amplitude deviation {diff:.3e} exceeds tol {tol:.3e}"
     return True, "amplitudes match within tolerance (global-phase invariant)"
@@ -87,16 +86,19 @@ def verify_probabilities(
         return False, f"shape mismatch: {observed.shape} vs {expected.shape}"
     if not np.all(np.isfinite(observed)):
         return False, "observed probabilities contain non-finite values"
-    if abs(observed.sum() - 1.0) > 1e-8:
+    if abs(float(observed.sum()) - 1.0) > 1e-8:
         return False, f"probabilities sum to {observed.sum():.6f}, not 1"
-    diff = np.max(np.abs(observed - expected))
+    diff = float(np.max(np.abs(observed - expected)))
     if diff > tol:
         return False, f"max probability deviation {diff:.3e} exceeds tol {tol:.3e}"
     return True, "probabilities match within tolerance"
 
 
-def verify_normalization(amps: np.ndarray, *,
-                         tol: float = 1e-10) -> Tuple[bool, str]:
+def verify_normalization(
+    amps: np.ndarray,
+    *,
+    tol: float = 1e-10,
+) -> Tuple[bool, str]:
     norm = float(np.linalg.norm(amps))
     if abs(norm - 1.0) > tol:
         return False, f"norm={norm:.6e}, expected 1.0 ± {tol}"
@@ -121,10 +123,9 @@ def verify_shot_consistency(
         bitstr = format(idx, f"0{n_qubits}b")
         observed = counts.get(bitstr, 0)
         expected_count = p * shots
-        # binomial variance
-        var = shots * p * (1 - p)
+        var = shots * p * (1.0 - p)
         if var < 1e-12:
-            if observed != 0 and p == 0:
+            if observed != 0 and p == 0.0:
                 return False, f"unexpected counts for {bitstr}: {observed} (p=0)"
             continue
         z = abs(observed - expected_count) / np.sqrt(var)
