@@ -1,13 +1,25 @@
 /**
- * Client evidence checks using QProofCanonical (matches Python).
- * Missing report_hash => integrity unverified (never PASS).
- * Outcomes are independent: structure / integrity / scientific_checks.
+ * Browser evidence structure + integrity verification.
+ * Integrity is independent of scientific status.
  */
 (function (global) {
   "use strict";
-  var SUPPORTED_SCHEMA = { "1.0.0": 1, "1.1.0": 1 };
-  var REQUIRED = ["schema_version","experiment_id","status","checks","circuit","execution","results","verification"];
-  var STATUSES = { passed: 1, failed: 1, inconclusive: 1 };
+
+  var REQUIRED = [
+    "schema_version",
+    "experiment_id",
+    "status",
+    "circuit",
+    "execution",
+    "results",
+    "verification",
+    "environment",
+    "limitations",
+    "integrity",
+    "checks",
+  ];
+  var SUPPORTED_SCHEMA = { "1.0.0": true, "1.1.0": true };
+  var STATUSES = { passed: true, failed: true, inconclusive: true };
 
   function validateStructure(report) {
     var errors = [];
@@ -24,17 +36,18 @@
       else {
         for (var c = 0; c < report.checks.length; c++) {
           var ch = report.checks[c];
-          if (!ch || typeof ch !== "object") { errors.push("checks[" + c + "] must be an object"); continue; }
-          ["name","status","detail"].forEach(function (k) {
+          if (!ch || typeof ch !== "object") {
+            errors.push("checks[" + c + "] must be an object");
+            continue;
+          }
+          ["name", "status", "detail"].forEach(function (k) {
             if (!(k in ch)) errors.push("checks[" + c + "] missing " + k);
           });
-          if (ch.status && !STATUSES[ch.status]) errors.push("checks[" + c + "] invalid status");
+          if (ch.status && !STATUSES[ch.status]) {
+            errors.push("checks[" + c + "] invalid status: " + ch.status);
+          }
         }
       }
-    }
-    if (report.circuit && typeof report.circuit === "object") {
-      if (!("n_qubits" in report.circuit)) errors.push("circuit.n_qubits missing");
-      if (!("spec" in report.circuit)) errors.push("circuit.spec missing");
     }
     return errors;
   }
@@ -63,7 +76,8 @@
         integrity: "unverified",
         structure: "valid",
         scientific_checks: sci,
-        detail: "structure valid; report_hash absent - integrity unverified (legacy or incomplete report)",
+        detail:
+          "structure valid; report_hash absent - integrity unverified (legacy or incomplete report)",
         client_side: true,
       });
     }
@@ -94,13 +108,26 @@
     }
     var recomputed = C.reportHash(report);
     if (recomputed !== declared) {
+      var canon =
+        (report.integrity && report.integrity.canonicalization) ||
+        "qproof-canonical-v1 (assumed)";
       return Promise.resolve({
         ok: false,
         hash_verified: false,
         integrity: "failed",
         structure: "valid",
         scientific_checks: sci,
-        detail: "report_hash mismatch: declared " + declared + ", recomputed " + recomputed,
+        detail:
+          "report_hash mismatch at verification stage using " +
+          canon +
+          "; declared " +
+          declared +
+          ", recomputed " +
+          recomputed +
+          " (report_hash field is excluded from the hash input; any other field change or non-canonical serialization will diverge)",
+        declared_hash: declared,
+        recomputed_hash: recomputed,
+        canonicalization: canon,
         client_side: true,
       });
     }
@@ -110,7 +137,9 @@
       integrity: "verified",
       structure: "valid",
       scientific_checks: sci,
-      detail: "structure valid; report_hash matches" + (integrity.circuit_hash ? "; circuit_hash matches" : ""),
+      detail:
+        "structure valid; report_hash matches" +
+        (integrity.circuit_hash ? "; circuit_hash matches" : ""),
       client_side: true,
     });
   }
