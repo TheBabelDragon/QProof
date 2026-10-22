@@ -15,8 +15,8 @@ from .reference import (
 
 
 def _hadamard_expected() -> np.ndarray:
-    s = 1.0 / np.sqrt(2.0)
-    return np.array([s, s], dtype=np.complex128)
+    from .reference_registry import resolve_reference
+    return resolve_reference("analytic/hadamard-v1").amplitudes_array()
 
 
 def _rx_pi_expected() -> np.ndarray:
@@ -79,30 +79,40 @@ def experiment_from_spec(
     seed: Optional[int] = None,
     reference_id: str = "supplied/expected-v1",
     limitations: Optional[List[str]] = None,
-    amplitude_tol: float = 1e-10,
-    probability_tol: float = 1e-10,
-    fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    """Build an Experiment from a validated circuit dict + expected amplitudes.
+    from .circuit import Circuit as C
 
-    This is the generic path: new experiments do not require a new runner.
-    """
-    from .circuit_spec import circuit_from_dict
-
-    circ, initial = circuit_from_dict(circuit_dict)
-    # If non-zero initial, bake it by prepending nothing — Circuit.run accepts initial
-    # We store initial by wrapping run via a small adapter circuit only if needed.
-    amps = np.asarray(expected_amplitudes, dtype=np.complex128).ravel()
-    if amps.size != (1 << circ.n_qubits):
-        raise ValueError(
-            f"expected_amplitudes length {amps.size} != 2^{circ.n_qubits}"
-        )
-    # Normalize expected for probability derivation
-    norm = np.linalg.norm(amps)
-    if norm == 0:
-        raise ValueError("expected_amplitudes is the zero vector")
-    amps = amps / norm
-    exp = Experiment(
+    n = int(circuit_dict["n_qubits"])
+    circ = C(n)
+    for g in circuit_dict.get("gates") or circuit_dict.get("spec") or []:
+        name = str(g["gate"]).upper()
+        qs = list(g["qubits"])
+        if name in ("H",):
+            circ = circ.h(qs[0])
+        elif name in ("X",):
+            circ = circ.x(qs[0])
+        elif name in ("Y",):
+            circ = circ.y(qs[0])
+        elif name in ("Z",):
+            circ = circ.z(qs[0])
+        elif name in ("S",):
+            circ = circ.s(qs[0])
+        elif name in ("T",):
+            circ = circ.t(qs[0])
+        elif name in ("RX",):
+            circ = circ.rx(qs[0], float(g["theta"]))
+        elif name in ("RY",):
+            circ = circ.ry(qs[0], float(g["theta"]))
+        elif name in ("RZ",):
+            circ = circ.rz(qs[0], float(g["theta"]))
+        elif name in ("CNOT", "CX"):
+            circ = circ.cx(qs[0], qs[1])
+        elif name in ("CZ",):
+            circ = circ.cz(qs[0], qs[1])
+        else:
+            raise ValueError(f"unsupported gate in circuit_dict: {name}")
+    amps = np.array([complex(a[0], a[1]) for a in expected_amplitudes], dtype=np.complex128)
+    return Experiment(
         experiment_id=experiment_id,
         description=description,
         claim=claim,
@@ -111,56 +121,33 @@ def experiment_from_spec(
         expected_probabilities=np.abs(amps) ** 2,
         shots=shots,
         seed=seed,
-        amplitude_tol=amplitude_tol,
-        probability_tol=probability_tol,
-        fidelity_tol=fidelity_tol,
         reference_id=reference_id,
-        limitations=list(limitations or [
-            "Classical simulation only.",
-            "Expected state supplied by caller; independence depends on how it was derived.",
-        ]),
+        limitations=list(limitations or []),
     )
-    # Attach initial state for runner (optional attribute)
-    exp._initial_state = initial  # type: ignore[attr-defined]
-    return exp
 
 
-# Lazy imports of built-ins to avoid circular deps at module load in some paths
-def _bell(**kwargs) -> Experiment:
-    from .experiment import bell_state_experiment
-    return bell_state_experiment(**kwargs)
-
-
-def _phase(**kwargs) -> Experiment:
-    from .experiment import global_phase_experiment
-    return global_phase_experiment()
-
-
-BUILTIN_FACTORIES: Dict[str, Callable[..., Experiment]] = {
-    "bell": _bell,
-    "phase": _phase,
+_FACTORIES: Dict[str, Callable[[], Experiment]] = {
     "hadamard": hadamard_experiment,
     "rx-pi": rx_pi_experiment,
 }
 
 
+def get_experiment(name: str) -> Experiment:
+    from .experiment import bell_state_experiment, global_phase_experiment
+
+    if name in ("bell", "bell-state", "bell-state-v1"):
+        return bell_state_experiment(shots=0, seed=None)
+    if name in ("phase", "global-phase", "global-phase-v1"):
+        return global_phase_experiment()
+    if name not in _FACTORIES:
+        raise KeyError(f"unknown experiment {name!r}; known: {list_experiments()}")
+    return _FACTORIES[name]()
+
+
 def list_experiments() -> List[dict]:
     return [
-        {"name": "bell", "experiment_id": "bell-state-v1", "role": "smoke / onboarding"},
-        {"name": "phase", "experiment_id": "global-phase-v1", "role": "phase fixture"},
         {"name": "hadamard", "experiment_id": "hadamard-v1", "role": "1q analytic"},
-        {"name": "rx-pi", "experiment_id": "rx-pi-v1", "role": "parameterized rotation"},
+        {"name": "bell", "experiment_id": "bell-state-v1", "role": "2q analytic"},
+        {"name": "rx-pi", "experiment_id": "rx-pi-v1", "role": "1q rotation"},
+        {"name": "global-phase", "experiment_id": "global-phase-v1", "role": "phase"},
     ]
-
-
-def get_experiment(name: str, **kwargs) -> Experiment:
-    key = name.lower().strip()
-    if key not in BUILTIN_FACTORIES:
-        raise KeyError(
-            f"unknown experiment {name!r}; choose from {sorted(BUILTIN_FACTORIES)}"
-        )
-    factory = BUILTIN_FACTORIES[key]
-    # Only bell accepts shots/seed kwargs currently
-    if key == "bell":
-        return factory(**kwargs)
-    return factory()
