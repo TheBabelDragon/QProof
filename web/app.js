@@ -1,107 +1,85 @@
-/* QProof workbench — live browser execution + precomputed evidence + integrity checks. */
+/* QProof capability-first workbench: Lab → Claim → Evidence */
 (function () {
   "use strict";
 
   const CAP_URL = "capabilities.json";
-  const REPRO_CMDS = {
-    "bell-state-v1": "qproof run bell --shots 1024 --seed 42 --out report.json",
-    "hadamard-v1": "qproof run hadamard --out report.json",
-    "rx-pi-v1": "qproof run rx-pi --out report.json",
-    "global-phase-v1": "qproof run phase --out report.json",
+  const TEMPLATES = {
+    hadamard: { n_qubits: 1, gates: [{ gate: "H", qubits: [0] }] },
+    bell: {
+      n_qubits: 2,
+      gates: [
+        { gate: "H", qubits: [0] },
+        { gate: "CNOT", qubits: [0, 1] },
+      ],
+    },
+    "rx-pi": { n_qubits: 1, gates: [{ gate: "RX", qubits: [0], theta: Math.PI }] },
+    phase: {
+      n_qubits: 1,
+      gates: [
+        { gate: "X", qubits: [0] },
+        { gate: "Z", qubits: [0] },
+      ],
+    },
   };
 
-  const GATE_HELP = {
-    I: "Identity",
-    X: "Pauli-X (NOT)",
-    Y: "Pauli-Y",
-    Z: "Pauli-Z",
-    H: "Hadamard",
-    S: "S phase",
-    T: "T phase",
-    RX: "Rotation about X (theta radians)",
-    RY: "Rotation about Y",
-    RZ: "Rotation about Z",
-    CNOT: "Controlled-NOT (control, target)",
-    CZ: "Controlled-Z",
-  };
-
-  let currentReport = null;
   let capabilities = null;
   /** @type {{n_qubits:number, gates:Array}} */
-  let builderSpec = { n_qubits: 2, gates: [] };
-  let lastProvenance = "none"; // browser_live | precomputed_python | import | ui_demo
+  let builder = { n_qubits: 1, gates: [] };
+  let lastRun = null; // simulator result + report
+  let currentReport = null;
+  let provenance = "none";
 
-  const $ = (sel) => document.querySelector(sel);
-
-  function basisLabel(i, n) {
-    return "|" + i.toString(2).padStart(n, "0") + "⟩";
-  }
+  const $ = (s) => document.querySelector(s);
 
   function setStatus(el, text, cls) {
+    if (!el) return;
     el.textContent = text;
     el.className = "runner-status" + (cls ? " " + cls : "");
   }
 
-  function setModeBadge(text) {
-    const b = $("#badge-mode");
-    if (b) b.textContent = text;
+  function depthOf(gates) {
+    return window.QProofDepth ? QProofDepth.circuitDepth(gates) : gates.length;
   }
 
-  function renderCapabilities(cap) {
-    capabilities = cap;
-    const sim = cap.simulator || {};
-    $("#cap-summary").innerHTML = [
-      ["Software", cap.software],
-      ["Max qubits (Python)", sim.max_qubits],
-      ["Max qubits (browser)", (window.QProofSimulator && QProofSimulator.MAX_QUBITS_BROWSER) || 12],
-      ["Ordering", sim.qubit_ordering],
-      ["Evidence schema", (cap.evidence_schema || {}).version],
-    ]
-      .map(
-        ([k, v]) =>
-          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
-      )
-      .join("");
-
-    const palette = $("#gate-palette");
-    palette.innerHTML = "";
-    Object.keys(cap.gates || {}).forEach((name) => {
-      const meta = cap.gates[name];
-      if (meta.alias_of) return;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "gate-box";
-      btn.textContent = name;
-      btn.title = GATE_HELP[name] || name;
-      btn.addEventListener("click", () => {
-        $("#gate-pick").value = name;
-        $("#gate-explain") && ($("#gate-explain").textContent = GATE_HELP[name] || name);
-      });
-      palette.appendChild(btn);
-    });
-    $("#cap-raw").textContent = JSON.stringify(cap, null, 2);
-  }
-
-  function renderBuilderList() {
-    $("#builder-gates").textContent = JSON.stringify(builderSpec.gates, null, 2);
-    renderCircuit(builderSpec.gates, builderSpec.n_qubits);
-    $("#circuit-meta").innerHTML = [
-      ["Qubits", builderSpec.n_qubits],
-      ["Gates", builderSpec.gates.length],
-      ["Depth", builderSpec.gates.length],
-    ]
-      .map(
-        ([k, v]) =>
-          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
-      )
-      .join("");
-  }
-
-  function renderCircuit(spec, nQubits) {
-    const host = $("#circuit-viz");
-    if (!host) return;
+  function renderGateList() {
+    const host = $("#gate-list");
     host.innerHTML = "";
-    for (let q = 0; q < nQubits; q++) {
+    if (!builder.gates.length) {
+      host.innerHTML = '<p class="muted">Empty circuit — add gates or load a template.</p>';
+      return;
+    }
+    builder.gates.forEach((g, i) => {
+      const row = document.createElement("div");
+      row.className = "gate-list-item";
+      const label =
+        g.gate +
+        " [" +
+        g.qubits.join(",") +
+        "]" +
+        (g.theta != null ? " θ=" + g.theta : "");
+      row.innerHTML =
+        '<span class="mono">' +
+        (i + 1) +
+        ". " +
+        label +
+        '</span> <button type="button" data-i="' +
+        i +
+        '" class="btn btn-tiny btn-del">×</button>';
+      host.appendChild(row);
+    });
+    host.querySelectorAll(".btn-del").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const i = parseInt(btn.getAttribute("data-i"), 10);
+        builder.gates.splice(i, 1);
+        refreshBuilder();
+      });
+    });
+  }
+
+  function renderCircuit(spec, n) {
+    const host = $("#circuit-viz");
+    host.innerHTML = "";
+    for (let q = 0; q < n; q++) {
       const row = document.createElement("div");
       row.className = "wire-row";
       const lab = document.createElement("span");
@@ -111,28 +89,29 @@
       line.className = "wire-line";
       (spec || []).forEach((g) => {
         const gate = String(g.gate).toUpperCase();
-        if (gate !== "CNOT" && gate !== "CZ" && gate !== "CX" && g.qubits[0] === q) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "gate-box";
-          btn.textContent = gate + (g.theta != null ? "(θ)" : "");
-          line.appendChild(btn);
-        } else if ((gate === "CNOT" || gate === "CX") && g.qubits[0] === q) {
+        const isCx = gate === "CNOT" || gate === "CX";
+        if (!isCx && gate !== "CZ" && g.qubits[0] === q) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "gate-box";
+          b.textContent = gate + (g.theta != null ? "(θ)" : "");
+          line.appendChild(b);
+        } else if (isCx && g.qubits[0] === q) {
           const d = document.createElement("span");
           d.className = "ctrl-dot";
           line.appendChild(d);
-        } else if ((gate === "CNOT" || gate === "CX") && g.qubits[1] === q) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "gate-box cnot";
-          btn.textContent = "⊕";
-          line.appendChild(btn);
+        } else if (isCx && g.qubits[1] === q) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "gate-box cnot";
+          b.textContent = "⊕";
+          line.appendChild(b);
         } else if (gate === "CZ" && g.qubits.includes(q)) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "gate-box";
-          btn.textContent = "CZ";
-          line.appendChild(btn);
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "gate-box";
+          b.textContent = "CZ";
+          line.appendChild(b);
         }
       });
       row.appendChild(lab);
@@ -141,7 +120,83 @@
     }
   }
 
-  function renderAmplitudes(report) {
+  function refreshBuilder() {
+    builder.n_qubits = parseInt($("#n-qubits").value, 10) || 1;
+    renderGateList();
+    renderCircuit(builder.gates, builder.n_qubits);
+    $("#circuit-meta").innerHTML = [
+      ["Qubits", builder.n_qubits],
+      ["Gates", builder.gates.length],
+      ["Depth", depthOf(builder.gates)],
+    ]
+      .map(
+        ([k, v]) =>
+          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
+      )
+      .join("");
+  }
+
+  function specFromBuilder() {
+    return {
+      format_version: "1.0.0",
+      n_qubits: builder.n_qubits,
+      gates: builder.gates.slice(),
+      initial_state: { type: "zero" },
+    };
+  }
+
+  function populateGateSelect(cap) {
+    const sel = $("#gate-pick");
+    sel.innerHTML = "";
+    const gates = (cap && cap.gates) || {
+      H: {},
+      X: {},
+      CNOT: {},
+    };
+    Object.keys(gates)
+      .filter((n) => !gates[n].alias_of)
+      .sort()
+      .forEach((name) => {
+        const o = document.createElement("option");
+        o.value = name;
+        o.textContent = name;
+        sel.appendChild(o);
+      });
+  }
+
+  function renderCapabilities(cap) {
+    capabilities = cap;
+    populateGateSelect(cap);
+    const sim = cap.simulator || {};
+    $("#cap-summary").innerHTML = [
+      ["Software", cap.software],
+      ["Python max qubits", sim.max_qubits],
+      ["Browser max qubits", (window.QProofSimulator && QProofSimulator.MAX_QUBITS_BROWSER) || 12],
+      ["Ordering", sim.qubit_ordering],
+      ["Evidence schema", (cap.evidence_schema || {}).version],
+    ]
+      .map(
+        ([k, v]) =>
+          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
+      )
+      .join("");
+    const palette = $("#gate-palette");
+    palette.innerHTML = "";
+    Object.keys(cap.gates || {}).forEach((name) => {
+      if (cap.gates[name].alias_of) return;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "gate-box";
+      btn.textContent = name;
+      btn.addEventListener("click", () => {
+        $("#gate-pick").value = name;
+      });
+      palette.appendChild(btn);
+    });
+    $("#cap-raw").textContent = JSON.stringify(cap, null, 2);
+  }
+
+  function showAmplitudes(report) {
     const n = report.circuit.n_qubits;
     const tbody = $("#amp-table tbody");
     tbody.innerHTML = "";
@@ -149,34 +204,27 @@
     const probs = report.results.observed_probabilities || [];
     obs.forEach((a, i) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${basisLabel(i, n)}</td><td>${Number(a[0]).toFixed(6)}</td><td>${Number(a[1]).toFixed(6)}</td><td>${Number(probs[i] ?? 0).toFixed(6)}</td>`;
+      const bit = "|" + i.toString(2).padStart(n, "0") + "⟩";
+      tr.innerHTML = `<td>${bit}</td><td>${Number(a[0]).toFixed(6)}</td><td>${Number(a[1]).toFixed(6)}</td><td>${Number(probs[i] || 0).toFixed(6)}</td>`;
       tbody.appendChild(tr);
     });
-  }
-
-  function renderProbs(report) {
     const host = $("#prob-bars");
     host.innerHTML = "";
-    const n = report.circuit.n_qubits;
-    const probs = report.results.observed_probabilities || [];
-    const expected = report.results.expected_probabilities || probs;
     const counts = report.results.measurement_counts || {};
     const shots = (report.execution && report.execution.shots) || 0;
     probs.forEach((p, i) => {
       const bit = i.toString(2).padStart(n, "0");
-      const exp = expected[i] != null ? expected[i] : p;
-      const obs = shots ? (counts[bit] || 0) / shots : p;
       const row = document.createElement("div");
       row.className = "prob-row";
       row.innerHTML = `
         <span class="bar-label">|${bit}⟩</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(exp, obs) * 100}%"></div></div>
-        <span class="bar-label">p=${Number(p).toFixed(3)}${shots ? " · n=" + (counts[bit] || 0) : ""}</span>`;
+        <div class="bar-track"><div class="bar-fill" style="width:${p * 100}%"></div></div>
+        <span class="bar-label">p=${Number(p).toFixed(3)}${shots ? " n=" + (counts[bit] || 0) : ""}</span>`;
       host.appendChild(row);
     });
   }
 
-  function renderChecks(report) {
+  function showChecks(report) {
     const tbody = $("#check-table tbody");
     tbody.innerHTML = "";
     (report.checks || []).forEach((c) => {
@@ -192,27 +240,11 @@
     });
   }
 
-  function renderEvidence(report) {
-    $("#evidence-meta").innerHTML = [
-      ["Schema", report.schema_version],
-      ["Experiment", report.experiment_id],
-      ["Status", report.status],
-      ["Simulator", (report.verification || {}).simulator_id],
-      ["Reference", (report.verification || {}).reference_id],
-      ["Mode", (report.execution || {}).mode],
-      ["Hash", ((report.integrity || {}).report_hash || "—").toString().slice(0, 24)],
-    ]
-      .map(
-        ([k, v]) =>
-          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
-      )
-      .join("");
-    $("#evidence-raw").textContent = JSON.stringify(report, null, 2);
-  }
-
-  function renderSummary(report) {
+  function applyReport(report, note, prov) {
+    currentReport = report;
+    provenance = prov || "unknown";
     const badge = $("#badge-status");
-    badge.textContent = String(report.status).toUpperCase();
+    badge.textContent = String(report.status || "—").toUpperCase();
     badge.className =
       "badge " +
       (report.status === "passed"
@@ -220,104 +252,169 @@
         : report.status === "failed"
           ? "fail"
           : "inconclusive");
-    $("#badge-experiment").textContent = report.experiment_id;
+    $("#badge-mode").textContent = provenance;
+    $("#badge-experiment").textContent = report.experiment_id || "";
     const fid = report.results && report.results.fidelity;
     $("#badge-fidelity").textContent =
-      fid != null ? "F = " + Number(fid).toFixed(12) : "";
+      fid != null && report.status !== "inconclusive"
+        ? "F=" + Number(fid).toFixed(8)
+        : "";
+    if (report.circuit) showAmplitudes(report);
+    showChecks(report);
+    $("#evidence-meta").innerHTML = [
+      ["Schema", report.schema_version],
+      ["Experiment", report.experiment_id],
+      ["Status", report.status],
+      ["Simulator", (report.verification || {}).simulator_id],
+      ["Reference", (report.verification || {}).reference_id],
+      ["Mode", (report.execution || {}).mode],
+      ["Provenance", provenance],
+      ["Hash", ((report.integrity || {}).report_hash || "— absent —").toString().slice(0, 28)],
+    ]
+      .map(
+        ([k, v]) =>
+          `<div class="meta-item"><span class="k">${k}</span><span class="v">${v}</span></div>`
+      )
+      .join("");
+    $("#evidence-raw").textContent = JSON.stringify(report, null, 2);
+    setStatus($("#runner-status"), note || provenance, report.status === "failed" ? "error" : "ok");
   }
 
-  function applyReport(report, note, provenance) {
-    if (!report || !report.schema_version || !report.checks) {
-      throw new Error("Malformed evidence: missing schema_version or checks");
+  function runLive() {
+    if (!window.QProofSimulator) {
+      setStatus($("#builder-status"), "Simulator not loaded", "error");
+      return;
     }
-    currentReport = report;
-    lastProvenance = provenance || "unknown";
-    renderSummary(report);
-    if (report.circuit && report.circuit.spec) {
-      renderCircuit(report.circuit.spec, report.circuit.n_qubits);
+    const spec = specFromBuilder();
+    const v = QProofSimulator.validateCircuit(spec);
+    if (!v.ok) {
+      setStatus($("#builder-status"), "Invalid: " + v.errors.join("; "), "error");
+      $("#badge-status").textContent = "INVALID";
+      $("#badge-status").className = "badge fail";
+      return;
     }
-    renderAmplitudes(report);
-    renderProbs(report);
-    renderChecks(report);
-    renderEvidence(report);
-    const modeLabel =
-      lastProvenance === "browser_live"
-        ? "live browser execution"
-        : lastProvenance === "precomputed_python"
-          ? "precomputed Python evidence"
-          : lastProvenance === "ui_demo"
-            ? "UI-only demo (not real verification)"
-            : lastProvenance === "import"
-              ? "imported evidence"
-              : lastProvenance;
-    setModeBadge(modeLabel);
-    setStatus(
-      $("#runner-status"),
-      note || modeLabel,
-      report.status === "passed" ? "ok" : report.status === "failed" ? "error" : ""
-    );
-    $("#evidence-error").hidden = true;
-  }
-
-  function corruptForUiDemo(report) {
-    const clone = JSON.parse(JSON.stringify(report));
-    clone.status = "failed";
-    if (clone.results) clone.results.fidelity = 0.5;
-    clone.checks = (clone.checks || []).map((c) =>
-      c.name === "amplitudes" || c.name === "fidelity"
-        ? {
-            ...c,
-            status: "failed",
-            detail: "UI-ONLY DEMO: display corrupted — not a verifier result",
-          }
-        : c
-    );
-    clone.experiment_id = (report.experiment_id || "exp") + " (ui-demo)";
-    return clone;
-  }
-
-  async function loadEvidence(url) {
-    setStatus($("#runner-status"), "Loading evidence…");
+    const shots = parseInt($("#run-shots").value, 10) || 0;
+    const seed = parseInt($("#run-seed").value, 10);
+    const init = parseInt($("#run-init").value, 10) || 0;
     try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status + " loading " + url);
+      const result = QProofSimulator.runCircuit(spec, {
+        shots,
+        seed: Number.isFinite(seed) ? seed : 42,
+        initialIndex: init > 0 ? init : undefined,
+      });
+      // Attach parallel depth
+      result.depth = depthOf(spec.gates);
+      const report = QProofSimulator.buildBrowserReport(spec, result, {
+        experiment_id: "lab-" + Date.now(),
+        reference_id: "none",
+      });
+      report.circuit.depth = result.depth;
+      lastRun = { spec, result, report };
       applyReport(
-        await res.json(),
-        "Precomputed Python-verified report. Not a live browser run.",
-        "precomputed_python"
+        report,
+        "Live browser execution — claim checks inconclusive until you supply a reference.",
+        "browser_live"
+      );
+      setStatus(
+        $("#builder-status"),
+        "Executed · " + result.runtime_ms + " ms · depth=" + result.depth,
+        "ok"
       );
     } catch (err) {
-      setStatus($("#runner-status"), "Failed: " + err.message, "error");
-      $("#evidence-error").hidden = false;
-      $("#evidence-error").textContent = String(err);
-      $("#badge-status").textContent = "ERROR";
-      $("#badge-status").className = "badge fail";
+      setStatus($("#builder-status"), String(err.message || err), "error");
     }
   }
 
-  async function loadCapabilities() {
-    try {
-      const res = await fetch(CAP_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      renderCapabilities(await res.json());
-    } catch (err) {
-      $("#cap-summary").innerHTML =
-        "<p class=\"error\">Could not load capabilities.json: " + err.message + "</p>";
+  function analyticRef(mode) {
+    const s = 1 / Math.sqrt(2);
+    if (mode === "analytic-bell") {
+      return {
+        amps: [
+          [s, 0],
+          [0, 0],
+          [0, 0],
+          [s, 0],
+        ],
+        probs: [0.5, 0, 0, 0.5],
+        id: "analytic/bell-v1",
+      };
     }
+    if (mode === "analytic-h") {
+      return {
+        amps: [
+          [s, 0],
+          [s, 0],
+        ],
+        probs: [0.5, 0.5],
+        id: "analytic/hadamard-v1",
+      };
+    }
+    return null;
   }
 
-  function currentBuilderSpec() {
-    const n = parseInt($("#n-qubits").value, 10) || 2;
-    builderSpec.n_qubits = n;
-    return {
-      format_version: "1.0.0",
-      n_qubits: n,
-      gates: builderSpec.gates.slice(),
-      initial_state: { type: "zero" },
-    };
+  function verifyClaim() {
+    if (!lastRun) {
+      setStatus($("#claim-status"), "Run a circuit in the Lab first.", "error");
+      return;
+    }
+    const mode = $("#ref-mode").value;
+    const tol = parseFloat($("#ref-tol").value) || 1e-10;
+    let expectedAmps = null;
+    let expectedProbs = null;
+    let refId = "none";
+    if (mode === "paste") {
+      try {
+        expectedAmps = JSON.parse($("#ref-amps").value);
+        expectedProbs = expectedAmps.map((a) => a[0] * a[0] + a[1] * a[1]);
+        refId = "supplied/paste-v1";
+      } catch (e) {
+        setStatus($("#claim-status"), "Invalid amplitude JSON", "error");
+        return;
+      }
+    } else {
+      const ref = analyticRef(mode);
+      if (ref) {
+        expectedAmps = ref.amps;
+        expectedProbs = ref.probs;
+        refId = ref.id;
+      }
+    }
+    const report = QProofSimulator.buildBrowserReport(lastRun.spec, lastRun.result, {
+      experiment_id: lastRun.report.experiment_id,
+      expected_amplitudes: expectedAmps,
+      expected_probabilities: expectedProbs,
+      reference_id: refId,
+      tolerance: tol,
+    });
+    report.circuit.depth = depthOf(lastRun.spec.gates);
+    lastRun.report = report;
+    applyReport(report, "Claim verification against " + refId, "browser_live+claim");
+    setStatus(
+      $("#claim-status"),
+      "Overall: " + report.status.toUpperCase() + " (scientific checks; not hash integrity)",
+      report.status === "passed" ? "ok" : report.status === "failed" ? "error" : ""
+    );
   }
 
-  function addGateFromForm() {
+  async function verifyIntegrity(report) {
+    if (!window.QProofEvidence) {
+      setStatus($("#integrity-status"), "Verifier not loaded", "error");
+      return;
+    }
+    const r = await QProofEvidence.verifyReportIntegrity(report);
+    const hashNote =
+      r.ok && r.detail.indexOf("no report_hash") >= 0
+        ? " (structure only — NOT hash-verified)"
+        : "";
+    setStatus(
+      $("#integrity-status"),
+      (r.ok ? "Integrity path: " : "Integrity FAIL: ") + r.detail + hashNote + " [client]",
+      r.ok && hashNote === "" ? "ok" : r.ok ? "" : "error"
+    );
+  }
+
+  // events
+  $("#btn-add-gate").addEventListener("click", () => {
     const name = $("#gate-pick").value.toUpperCase();
     const qs = $("#gate-qubits")
       .value.split(/[,\s]+/)
@@ -327,131 +424,40 @@
     if (name === "RX" || name === "RY" || name === "RZ") {
       const th = parseFloat($("#gate-theta").value);
       if (!Number.isFinite(th)) {
-        setStatus($("#builder-status"), "Rotation gates need finite theta", "error");
+        setStatus($("#builder-status"), "Rotation needs finite θ", "error");
         return;
       }
       entry.theta = th;
     }
-    builderSpec.gates.push(entry);
-    renderBuilderList();
-    setStatus($("#builder-status"), "Added " + name, "ok");
-  }
-
-  function runLive() {
-    if (!window.QProofSimulator) {
-      setStatus($("#builder-status"), "Simulator not loaded", "error");
-      return;
-    }
-    const spec = currentBuilderSpec();
-    const v = QProofSimulator.validateCircuit(spec);
-    if (!v.ok) {
-      setStatus($("#builder-status"), "Invalid: " + v.errors.join("; "), "error");
-      return;
-    }
-    const shots = parseInt($("#run-shots").value, 10) || 0;
-    const seed = parseInt($("#run-seed").value, 10);
-    try {
-      const result = QProofSimulator.runCircuit(spec, {
-        shots: shots,
-        seed: Number.isFinite(seed) ? seed : 42,
-      });
-      // Analytic expectations for known small patterns
-      let expectedAmps = null;
-      let expectedProbs = null;
-      let refId = "none";
-      const gstr = JSON.stringify(spec.gates);
-      if (
-        spec.n_qubits === 2 &&
-        gstr === JSON.stringify([{ gate: "H", qubits: [0] }, { gate: "CNOT", qubits: [0, 1] }])
-      ) {
-        const s = 1 / Math.sqrt(2);
-        expectedAmps = [
-          [s, 0],
-          [0, 0],
-          [0, 0],
-          [s, 0],
-        ];
-        expectedProbs = [0.5, 0, 0, 0.5];
-        refId = "analytic/bell-v1";
-      } else if (
-        spec.n_qubits === 1 &&
-        spec.gates.length === 1 &&
-        String(spec.gates[0].gate).toUpperCase() === "H"
-      ) {
-        const s = 1 / Math.sqrt(2);
-        expectedAmps = [
-          [s, 0],
-          [s, 0],
-        ];
-        expectedProbs = [0.5, 0.5];
-        refId = "analytic/hadamard-v1";
-      }
-      const report = QProofSimulator.buildBrowserReport(spec, result, {
-        experiment_id: "browser-live-" + Date.now(),
-        expected_amplitudes: expectedAmps,
-        expected_probabilities: expectedProbs,
-        reference_id: refId,
-      });
-      applyReport(
-        report,
-        "Live browser execution (" +
-          result.backend +
-          "). " +
-          (expectedAmps
-            ? "Compared to analytic reference."
-            : "No analytic reference — claim checks may be INCONCLUSIVE."),
-        "browser_live"
-      );
-      setStatus($("#builder-status"), "Executed in browser · " + result.runtime_ms + " ms", "ok");
-    } catch (err) {
-      setStatus($("#builder-status"), String(err.message || err), "error");
-    }
-  }
-
-  async function verifyIntegrity(report) {
-    if (!window.QProofEvidence) {
-      setStatus($("#integrity-status"), "Evidence verifier not loaded", "error");
-      return;
-    }
-    const r = await QProofEvidence.verifyReportIntegrity(report);
-    setStatus(
-      $("#integrity-status"),
-      (r.ok ? "Integrity OK: " : "Integrity FAIL: ") +
-        r.detail +
-        (r.client_side ? " [client-side check]" : ""),
-      r.ok ? "ok" : "error"
-    );
-    return r;
-  }
-
-  // --- events ---
-  $("#btn-add-gate").addEventListener("click", addGateFromForm);
-  $("#btn-clear-gates").addEventListener("click", () => {
-    builderSpec.gates = [];
-    renderBuilderList();
+    builder.gates.push(entry);
+    refreshBuilder();
   });
-  $("#btn-load-bell").addEventListener("click", () => {
-    $("#n-qubits").value = 2;
-    builderSpec = {
-      n_qubits: 2,
-      gates: [
-        { gate: "H", qubits: [0] },
-        { gate: "CNOT", qubits: [0, 1] },
-      ],
-    };
-    renderBuilderList();
+  $("#btn-remove-last").addEventListener("click", () => {
+    builder.gates.pop();
+    refreshBuilder();
   });
-  $("#btn-load-h").addEventListener("click", () => {
-    $("#n-qubits").value = 1;
-    builderSpec = { n_qubits: 1, gates: [{ gate: "H", qubits: [0] }] };
-    renderBuilderList();
+  $("#btn-move-up").addEventListener("click", () => {
+    if (builder.gates.length < 2) return;
+    const a = builder.gates.pop();
+    builder.gates.splice(builder.gates.length - 1, 0, a);
+    refreshBuilder();
   });
-  $("#n-qubits").addEventListener("change", () => {
-    builderSpec.n_qubits = parseInt($("#n-qubits").value, 10) || 2;
-    renderBuilderList();
+  $("#btn-blank").addEventListener("click", () => {
+    builder = { n_qubits: parseInt($("#n-qubits").value, 10) || 1, gates: [] };
+    refreshBuilder();
+    setStatus($("#builder-status"), "Blank circuit", "ok");
   });
+  $("#btn-apply-template").addEventListener("click", () => {
+    const id = $("#template-select").value;
+    if (!id || !TEMPLATES[id]) return;
+    const t = TEMPLATES[id];
+    builder = { n_qubits: t.n_qubits, gates: t.gates.map((g) => ({ ...g, qubits: g.qubits.slice() })) };
+    $("#n-qubits").value = t.n_qubits;
+    refreshBuilder();
+  });
+  $("#n-qubits").addEventListener("change", refreshBuilder);
   $("#btn-validate").addEventListener("click", () => {
-    const v = QProofSimulator.validateCircuit(currentBuilderSpec());
+    const v = QProofSimulator.validateCircuit(specFromBuilder());
     setStatus(
       $("#builder-status"),
       v.ok ? "Circuit valid" : "Invalid: " + v.errors.join("; "),
@@ -460,45 +466,54 @@
   });
   $("#btn-run-live").addEventListener("click", runLive);
   $("#btn-export-circ").addEventListener("click", () => {
-    const text = QProofSimulator.serializeCircuit(currentBuilderSpec());
-    const blob = new Blob([text], { type: "application/json" });
+    const blob = new Blob([QProofSimulator.serializeCircuit(specFromBuilder())], {
+      type: "application/json",
+    });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "circuit.json";
     a.click();
-    URL.revokeObjectURL(a.href);
   });
   $("#file-circuit").addEventListener("change", (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
       try {
-        const data = JSON.parse(reader.result);
-        const gates = data.gates || (data.circuit && data.circuit.spec) || data.spec || [];
+        const data = JSON.parse(r.result);
+        const gates = data.gates || (data.circuit && data.circuit.spec) || [];
         const n = data.n_qubits || (data.circuit && data.circuit.n_qubits) || 1;
-        builderSpec = { n_qubits: n, gates: gates };
+        builder = { n_qubits: n, gates };
         $("#n-qubits").value = n;
-        renderBuilderList();
+        refreshBuilder();
         setStatus($("#builder-status"), "Imported circuit", "ok");
-      } catch (err) {
-        setStatus($("#builder-status"), "Import failed: " + err.message, "error");
+      } catch (e) {
+        setStatus($("#builder-status"), "Import failed: " + e.message, "error");
       }
     };
-    reader.readAsText(file);
+    r.readAsText(f);
   });
-
-  $("#btn-load").addEventListener("click", () => loadEvidence($("#exp-select").value));
-  $("#btn-fail").addEventListener("click", () => {
-    if (!currentReport) {
-      setStatus($("#runner-status"), "Load a report first.", "error");
+  $("#btn-verify-claim").addEventListener("click", verifyClaim);
+  $("#btn-load").addEventListener("click", async () => {
+    const url = $("#exp-select").value;
+    if (!url) {
+      setStatus($("#runner-status"), "Select a fixture or import evidence.", "error");
       return;
     }
-    applyReport(
-      corruptForUiDemo(currentReport),
-      "UI-ONLY failure demo: display mutated. This is NOT the evidence verifier.",
-      "ui_demo"
-    );
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      applyReport(await res.json(), "Precomputed Python fixture (optional)", "precomputed_python");
+    } catch (e) {
+      setStatus($("#runner-status"), String(e.message || e), "error");
+    }
+  });
+  $("#btn-use-live").addEventListener("click", () => {
+    if (!lastRun) {
+      setStatus($("#runner-status"), "No live run yet.", "error");
+      return;
+    }
+    applyReport(lastRun.report, "Last live browser report", "browser_live");
   });
   $("#btn-verify-integrity").addEventListener("click", () => {
     if (!currentReport) {
@@ -513,16 +528,33 @@
       return;
     }
     const clone = JSON.parse(JSON.stringify(currentReport));
-    // Tamper without updating hash
     clone.status = clone.status === "passed" ? "failed" : "passed";
-    if (clone.results) clone.results.fidelity = 0.123456;
+    if (clone.results) clone.results.fidelity = 0.111;
     const r = await QProofEvidence.verifyReportIntegrity(clone);
     setStatus(
       $("#integrity-status"),
-      r.ok
-        ? "Unexpected: tampered report still OK (" + r.detail + ")"
-        : "Tamper detected (expected): " + r.detail,
+      r.ok ? "Unexpected: tamper not detected" : "Tamper detected (expected): " + r.detail,
       r.ok ? "error" : "ok"
+    );
+  });
+  $("#btn-ui-demo").addEventListener("click", () => {
+    if (!currentReport) {
+      setStatus($("#runner-status"), "Load a report first.", "error");
+      return;
+    }
+    const clone = JSON.parse(JSON.stringify(currentReport));
+    clone.status = "failed";
+    clone.experiment_id = (clone.experiment_id || "exp") + " (ui-demo)";
+    (clone.checks || []).forEach((c) => {
+      if (c.name === "fidelity" || c.name === "amplitudes") {
+        c.status = "failed";
+        c.detail = "UI-ONLY DEMO — display mutated; not a verifier result";
+      }
+    });
+    applyReport(
+      clone,
+      "UI-ONLY display demo. Does not run the integrity verifier.",
+      "ui_display_demo"
     );
   });
   $("#btn-download").addEventListener("click", () => {
@@ -534,48 +566,28 @@
     a.href = URL.createObjectURL(blob);
     a.download = (currentReport.experiment_id || "evidence") + ".json";
     a.click();
-    URL.revokeObjectURL(a.href);
-  });
-  $("#btn-copy-cmd").addEventListener("click", async () => {
-    const id = (currentReport && currentReport.experiment_id) || "bell-state-v1";
-    const cmd = REPRO_CMDS[id] || "qproof run bell --out report.json";
-    try {
-      await navigator.clipboard.writeText(cmd);
-      setStatus($("#runner-status"), "Copied: " + cmd, "ok");
-    } catch {
-      setStatus($("#runner-status"), cmd);
-    }
-  });
-  $("#btn-toggle-cap").addEventListener("click", () => {
-    const el = $("#cap-raw");
-    el.hidden = !el.hidden;
   });
   $("#file-import").addEventListener("change", (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
       try {
-        applyReport(
-          JSON.parse(reader.result),
-          "Imported local evidence (not re-executed).",
-          "import"
-        );
-      } catch (err) {
-        setStatus($("#runner-status"), "Import failed: " + err.message, "error");
+        applyReport(JSON.parse(r.result), "Imported evidence", "import");
+      } catch (e) {
+        setStatus($("#runner-status"), "Import failed: " + e.message, "error");
       }
     };
-    reader.readAsText(file);
+    r.readAsText(f);
   });
 
-  loadCapabilities();
-  builderSpec = {
-    n_qubits: 2,
-    gates: [
-      { gate: "H", qubits: [0] },
-      { gate: "CNOT", qubits: [0, 1] },
-    ],
-  };
-  renderBuilderList();
-  loadEvidence($("#exp-select").value);
+  fetch(CAP_URL, { cache: "no-store" })
+    .then((r) => r.json())
+    .then(renderCapabilities)
+    .catch((e) => {
+      $("#cap-summary").innerHTML = "<p class=\"error\">" + e.message + "</p>";
+      populateGateSelect(null);
+    });
+
+  refreshBuilder();
 })();
