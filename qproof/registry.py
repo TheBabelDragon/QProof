@@ -83,10 +83,13 @@ def experiment_from_spec(
     probability_tol: float = 1e-10,
     fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    from .circuit_spec import parse_circuit_dict
-    from .statevector import StateVector
+    """Build an Experiment from a validated circuit dict + expected amplitudes.
 
-    circ, initial = parse_circuit_dict(circuit_dict)
+    This is the generic path: new experiments do not require a new runner.
+    """
+    from .circuit_spec import circuit_from_dict
+
+    circ, initial = circuit_from_dict(circuit_dict)
     amps = np.asarray(expected_amplitudes, dtype=np.complex128).ravel()
     if amps.size != (1 << circ.n_qubits):
         raise ValueError(
