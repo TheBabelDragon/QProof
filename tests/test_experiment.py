@@ -5,14 +5,8 @@ import json
 import numpy as np
 import pytest
 
-from qproof import (
-    Circuit,
-    Experiment,
-    ExperimentStatus,
-    bell_state_experiment,
-    global_phase_experiment,
-    run_experiment,
-)
+from qproof import Circuit, Experiment, ExperimentStatus, run_experiment
+from qproof.experiment import bell_state_experiment, global_phase_experiment
 from qproof.reference import bell_expected_amplitudes, verify_amplitudes
 
 
@@ -35,7 +29,6 @@ def test_bell_reproducible_with_seed():
 def test_global_phase_passes():
     report = run_experiment(global_phase_experiment())
     assert report.status == ExperimentStatus.PASSED
-    # fidelity is phase-invariant → 1.0 even though amplitude has a minus sign
     assert report.fidelity == pytest.approx(1.0)
 
 
@@ -44,6 +37,7 @@ def test_independent_reference_differs_from_simulator_path():
     sim = Circuit(2).h(0).cx(0, 1).run().amplitudes
     assert np.allclose(analytic, sim)
     import qproof.reference as ref
+
     assert not hasattr(ref, "Circuit")
 
 
@@ -68,7 +62,9 @@ def test_negative_wrong_expected_fails():
 def test_negative_corrupted_tolerance_fails():
     exp = bell_state_experiment(shots=0)
     exp.expected_amplitudes = exp.expected_amplitudes * 0.99
-    exp.expected_amplitudes = exp.expected_amplitudes / np.linalg.norm(exp.expected_amplitudes)
+    exp.expected_amplitudes = exp.expected_amplitudes / np.linalg.norm(
+        exp.expected_amplitudes
+    )
     exp.expected_probabilities = np.abs(exp.expected_amplitudes) ** 2
     report = run_experiment(exp)
     assert report.status == ExperimentStatus.FAILED
