@@ -83,7 +83,7 @@
     </section>
     <section id="claims" class="card">
       <h2>Claim Verification</h2>
-      <p class="muted">Without a reference, amplitude/fidelity checks are <strong>inconclusive</strong>.</p>
+      <p class="muted">Without a reference, amplitude/fidelity checks are <strong>inconclusive</strong>. Use the matching analytic reference for Hadamard or Bell.</p>
       <div class="controls">
         <label>Reference source
           <select id="ref-mode">
@@ -104,7 +104,7 @@
     </section>
     <section id="evidence-ws" class="card">
       <h2>Evidence Inspector</h2>
-      <p class="muted">Integrity ≠ scientific truth. Authoritative path: <code>qproof verify-evidence</code>.</p>
+      <p class="muted">Integrity ≠ scientific truth. Labels: Integrity verified / failed / unverified · Scientific checks passed / failed / inconclusive.</p>
       <div class="controls">
         <label>Fixture (optional)
           <select id="exp-select">
@@ -148,6 +148,7 @@
   <footer class="site-footer wrap"><p>QProof · MIT · <a href="https://github.com/TheBabelDragon/QProof">TheBabelDragon/QProof</a></p></footer>
   <script src="canonical_hash.js"></script>
   <script src="simulator.js"></script>
+  <script src="hash_attach.js"></script>
   <script src="circuit_depth.js"></script>
   <script src="evidence_verify.js"></script>
   <script src="app.js"></script>
