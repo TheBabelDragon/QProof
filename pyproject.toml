@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qproof"
-version = "0.1.0"
-description = "Independent Quantum State-Vector Simulator + Falsifiable Experiment Core"
+version = "0.2.0"
+description = "Capability-first quantum state-vector simulator + falsifiable verification"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "TheBabelDragon" }]
-keywords = ["quantum", "state-vector", "simulator", "experiment", "falsifiable"]
+keywords = ["quantum", "state-vector", "simulator", "experiment", "falsifiable", "verification"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

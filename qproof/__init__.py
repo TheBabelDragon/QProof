@@ -1,17 +1,15 @@
 """
 QProof — Independent Quantum State-Vector Simulator + Falsifiable Experiment Core.
 
-A transparent reference state-vector simulator with independently testable
-gate semantics, deterministic experiment execution, and machine-readable
-evidence reports.
+Capability-first verification framework. The Bell-state experiment is a smoke
+test and onboarding fixture — not the architectural boundary.
 
-This package does not claim quantum advantage. It provides a classical
-reference simulator for reproducible, falsifiable quantum experiments.
+This package does not claim quantum advantage or hardware execution.
 """
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __software_id__ = f"qproof/{__version__}"
 
 from .statevector import StateVector, MAX_QUBITS, memory_estimate_bytes
@@ -41,6 +39,16 @@ from .experiment import (
     run_experiment,
     SCHEMA_VERSION,
 )
+from .capabilities import capability_manifest
+from .circuit_spec import (
+    CIRCUIT_FORMAT_VERSION,
+    CircuitSpecError,
+    circuit_from_dict,
+    circuit_to_dict,
+    validate_circuit_dict,
+)
+from .registry import get_experiment, list_experiments, experiment_from_spec
+from .evidence import validate_evidence_structure, verify_report_integrity
 
 __all__ = [
     "__version__",
@@ -71,4 +79,15 @@ __all__ = [
     "ExperimentStatus",
     "run_experiment",
     "SCHEMA_VERSION",
+    "capability_manifest",
+    "CIRCUIT_FORMAT_VERSION",
+    "CircuitSpecError",
+    "circuit_from_dict",
+    "circuit_to_dict",
+    "validate_circuit_dict",
+    "get_experiment",
+    "list_experiments",
+    "experiment_from_spec",
+    "validate_evidence_structure",
+    "verify_report_integrity",
 ]

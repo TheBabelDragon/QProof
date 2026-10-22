@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "experiment_id": "rx-pi-v1",
+  "description": "Apply RX(π) to |0⟩; expect −i|1⟩.",
+  "claim": "Classical simulation of RX(π) on |0⟩ matches analytic −i|1⟩ (fidelity to |1⟩ is 1 under phase-invariant definition).",
+  "status": "passed",
+  "checks": [
+    {"name": "dimension", "status": "passed", "detail": "dim=2"},
+    {"name": "finite", "status": "passed", "detail": "all amplitudes finite"},
+    {"name": "normalization", "status": "passed", "detail": "normalized (norm=1.000000e+00)", "tolerance": 1e-10},
+    {"name": "amplitudes", "status": "passed", "detail": "amplitudes match within tolerance (global-phase invariant)", "tolerance": 1e-10},
+    {"name": "probabilities", "status": "passed", "detail": "probabilities match within tolerance", "tolerance": 1e-10},
+    {"name": "fidelity", "status": "passed", "detail": "F=1.000000000000", "observed": 1.0, "expected": 1.0, "tolerance": 1e-10},
+    {"name": "shot_consistency", "status": "passed", "detail": "no shots requested — exact probabilities only"}
+  ],
+  "circuit": {
+    "n_qubits": 1,
+    "gate_count": 1,
+    "depth": 1,
+    "spec": [{"gate": "RX", "qubits": [0], "theta": 3.141592653589793}]
+  },
+  "execution": {"shots": 0, "seed": null, "mode": "classical_statevector", "runtime_ms": 0.5},
+  "results": {
+    "observed_amplitudes": [[0.0, 0.0], [0.0, -1.0]],
+    "observed_probabilities": [0.0, 1.0],
+    "expected_amplitudes": [[0.0, 0.0], [0.0, -1.0]],
+    "expected_probabilities": [0.0, 1.0],
+    "fidelity": 1.0,
+    "measurement_counts": {}
+  },
+  "verification": {
+    "simulator_id": "qproof/0.2.0",
+    "reference_id": "analytic/rx-pi-v1",
+    "tolerances": {"amplitude": 1e-10, "probability": 1e-10, "fidelity": 1e-10}
+  },
+  "environment": {"python": "3.12", "platform": "ci", "numpy": ">=1.22", "qproof": "0.2.0"},
+  "limitations": ["Classical simulation only.", "Parameterized rotation fixture."],
+  "integrity": {"input_hash": null, "report_hash": null}
+}

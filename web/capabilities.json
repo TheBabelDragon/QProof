@@ -1,0 +1,81 @@
+{
+  "circuit_format": {
+    "description": "Versioned circuit + experiment JSON (see docs/circuit_format.md)",
+    "media_type": "application/json",
+    "version": "1.0.0"
+  },
+  "evidence_schema": {
+    "backward_compatible_with": ["1.0.0"],
+    "version": "1.1.0"
+  },
+  "examples": [
+    {"id": "bell-state-v1", "role": "smoke_test / onboarding fixture"},
+    {"id": "global-phase-v1", "role": "phase semantics fixture"},
+    {"id": "hadamard-v1", "role": "single-qubit analytic fixture"},
+    {"id": "rx-pi-v1", "role": "parameterized rotation fixture"}
+  ],
+  "execution_modes": [
+    {"available": true, "description": "Exact pure-state simulation in Python/NumPy", "id": "classical_statevector"},
+    {"available": true, "description": "Load previously generated verified JSON reports", "id": "precomputed_evidence"},
+    {"available": false, "description": "No hardware backend is integrated", "id": "quantum_hardware"}
+  ],
+  "gates": {
+    "CNOT": {"arity": 2, "params": [], "roles": ["control", "target"], "status": "supported"},
+    "CX": {"alias_of": "CNOT", "arity": 2, "params": [], "roles": ["control", "target"], "status": "supported"},
+    "CZ": {"arity": 2, "params": [], "roles": ["control", "target"], "status": "supported"},
+    "H": {"arity": 1, "params": [], "status": "supported"},
+    "I": {"arity": 1, "params": [], "status": "supported"},
+    "RX": {"arity": 1, "params": ["theta"], "status": "supported"},
+    "RY": {"arity": 1, "params": ["theta"], "status": "supported"},
+    "RZ": {"arity": 1, "params": ["theta"], "status": "supported"},
+    "S": {"arity": 1, "params": [], "status": "supported"},
+    "T": {"arity": 1, "params": [], "status": "supported"},
+    "X": {"arity": 1, "params": [], "status": "supported"},
+    "Y": {"arity": 1, "params": [], "status": "supported"},
+    "Z": {"arity": 1, "params": [], "status": "supported"}
+  },
+  "initial_states": {
+    "supported": ["zero", "basis_index"],
+    "unsupported": ["arbitrary_unnormalized", "mixed_density_matrix"]
+  },
+  "limitations": [
+    "Classical simulation only — does not claim quantum advantage.",
+    "No noise, error correction, or open-system dynamics.",
+    "No mid-circuit measurement or classical feed-forward.",
+    "Comparing two software paths does not prove hardware correctness.",
+    "Shot z-score checks are consistency filters, not formal hypothesis tests."
+  ],
+  "measurement": {
+    "basis": "computational",
+    "deterministic_seed": true,
+    "exact_probabilities": true,
+    "mid_circuit": false,
+    "shots": true
+  },
+  "schema_version": "1.0.0",
+  "simulator": {
+    "backend": "classical_statevector",
+    "dtype": "complex128",
+    "hardware_backends": [],
+    "max_qubits": 20,
+    "memory_note": "~16 bytes × 2^n; soft fail above 20 qubits",
+    "noise_model": false,
+    "qubit_ordering": "little-endian (qubit 0 = LSB)"
+  },
+  "software": "qproof/0.2.0",
+  "unsupported_gates": ["SWAP", "CCNOT", "TOFFOLI", "U", "U1", "U2", "U3", "ISWAP", "RXX", "RYY", "RZZ"],
+  "verification": {
+    "methods": [
+      "normalization",
+      "finite_amplitudes",
+      "amplitude_match_global_phase_invariant",
+      "probability_match",
+      "pure_state_fidelity",
+      "shot_consistency_zscore",
+      "evidence_schema",
+      "integrity_hash"
+    ],
+    "outcomes": ["passed", "failed", "inconclusive"],
+    "reference_strategies": ["analytic_closed_form", "invariant_only", "supplied_expected_state"]
+  }
+}
