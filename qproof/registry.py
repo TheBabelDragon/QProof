@@ -79,39 +79,42 @@ def experiment_from_spec(
     seed: Optional[int] = None,
     reference_id: str = "supplied/expected-v1",
     limitations: Optional[List[str]] = None,
+    amplitude_tol: float = 1e-10,
+    probability_tol: float = 1e-10,
+    fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    from .circuit import Circuit as C
-
     n = int(circuit_dict["n_qubits"])
-    circ = C(n)
+    circ = Circuit(n)
     for g in circuit_dict.get("gates") or circuit_dict.get("spec") or []:
         name = str(g["gate"]).upper()
         qs = list(g["qubits"])
-        if name in ("H",):
+        if name == "H":
             circ = circ.h(qs[0])
-        elif name in ("X",):
+        elif name == "X":
             circ = circ.x(qs[0])
-        elif name in ("Y",):
+        elif name == "Y":
             circ = circ.y(qs[0])
-        elif name in ("Z",):
+        elif name == "Z":
             circ = circ.z(qs[0])
-        elif name in ("S",):
+        elif name == "S":
             circ = circ.s(qs[0])
-        elif name in ("T",):
+        elif name == "T":
             circ = circ.t(qs[0])
-        elif name in ("RX",):
+        elif name == "RX":
             circ = circ.rx(qs[0], float(g["theta"]))
-        elif name in ("RY",):
+        elif name == "RY":
             circ = circ.ry(qs[0], float(g["theta"]))
-        elif name in ("RZ",):
+        elif name == "RZ":
             circ = circ.rz(qs[0], float(g["theta"]))
         elif name in ("CNOT", "CX"):
             circ = circ.cx(qs[0], qs[1])
-        elif name in ("CZ",):
+        elif name == "CZ":
             circ = circ.cz(qs[0], qs[1])
         else:
             raise ValueError(f"unsupported gate in circuit_dict: {name}")
-    amps = np.array([complex(a[0], a[1]) for a in expected_amplitudes], dtype=np.complex128)
+    amps = np.array(
+        [complex(a[0], a[1]) for a in expected_amplitudes], dtype=np.complex128
+    )
     return Experiment(
         experiment_id=experiment_id,
         description=description,
@@ -123,10 +126,13 @@ def experiment_from_spec(
         seed=seed,
         reference_id=reference_id,
         limitations=list(limitations or []),
+        amplitude_tol=amplitude_tol,
+        probability_tol=probability_tol,
+        fidelity_tol=fidelity_tol,
     )
 
 
-_FACTORIES: Dict[str, Callable[[], Experiment]] = {
+BUILTIN_FACTORIES: Dict[str, Callable[[], Experiment]] = {
     "hadamard": hadamard_experiment,
     "rx-pi": rx_pi_experiment,
 }
@@ -135,19 +141,28 @@ _FACTORIES: Dict[str, Callable[[], Experiment]] = {
 def get_experiment(name: str) -> Experiment:
     from .experiment import bell_state_experiment, global_phase_experiment
 
-    if name in ("bell", "bell-state", "bell-state-v1"):
+    aliases = {
+        "bell": "bell",
+        "bell-state": "bell",
+        "bell-state-v1": "bell",
+        "phase": "phase",
+        "global-phase": "phase",
+        "global-phase-v1": "phase",
+    }
+    key = aliases.get(name, name)
+    if key == "bell":
         return bell_state_experiment(shots=0, seed=None)
-    if name in ("phase", "global-phase", "global-phase-v1"):
+    if key == "phase":
         return global_phase_experiment()
-    if name not in _FACTORIES:
-        raise KeyError(f"unknown experiment {name!r}; known: {list_experiments()}")
-    return _FACTORIES[name]()
+    if key not in BUILTIN_FACTORIES:
+        raise KeyError(f"unknown experiment {name!r}; known: {[e['name'] for e in list_experiments()]}")
+    return BUILTIN_FACTORIES[key]()
 
 
 def list_experiments() -> List[dict]:
     return [
+        {"name": "bell", "experiment_id": "bell-state-v1", "role": "smoke / onboarding"},
+        {"name": "phase", "experiment_id": "global-phase-v1", "role": "phase fixture"},
         {"name": "hadamard", "experiment_id": "hadamard-v1", "role": "1q analytic"},
-        {"name": "bell", "experiment_id": "bell-state-v1", "role": "2q analytic"},
-        {"name": "rx-pi", "experiment_id": "rx-pi-v1", "role": "1q rotation"},
-        {"name": "global-phase", "experiment_id": "global-phase-v1", "role": "phase"},
+        {"name": "rx-pi", "experiment_id": "rx-pi-v1", "role": "parameterized rotation"},
     ]
