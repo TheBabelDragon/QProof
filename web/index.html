@@ -72,7 +72,7 @@
 
     <section id="claim-ws" class="card">
       <h2>Claim Verification</h2>
-      <p class="muted">Load a <strong>Hadamard</strong> or <strong>Bell</strong> template to auto-select a compatible analytic reference, then click <strong>Run live</strong> — scientific checks run automatically. Without a compatible reference, amplitude/fidelity/probability checks are <strong>inconclusive</strong> (not a simulation failure). References require matching qubit count, initial state, and circuit gates; mismatches are reported explicitly. Use <em>Verify claim</em> only to re-evaluate the last run against a newly selected reference.</p>
+      <p class="muted">Load a <strong>Hadamard</strong> or <strong>Bell</strong> template to auto-select a compatible analytic reference, then click <strong>Run live</strong> — scientific checks run automatically. Without a compatible reference, amplitude/fidelity/probability checks are <strong>inconclusive</strong> (not a simulation failure).</p>
       <div class="builder-row">
         <label>Reference
           <select id="ref-mode">
@@ -86,6 +86,7 @@
         <button type="button" id="btn-verify-claim" class="btn primary">Verify claim</button>
       </div>
       <textarea id="ref-amps" class="code-block" rows="4" placeholder='[[0.7071,0],[0.7071,0]]'></textarea>
+      <p id="ref-diagnostic" class="runner-status" aria-live="polite">Reference used: —</p>
       <p id="claim-status" class="runner-status"></p>
     </section>
 
