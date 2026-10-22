@@ -1,89 +1,62 @@
 # QProof
 
-**Capability-first classical state-vector simulation + falsifiable verification**
+**Capability-first classical state-vector experiment workbench**
 
-QProof verifies claims about circuits it can simulate. The Bell-state experiment is a **smoke test / onboarding fixture**, not the architectural boundary.
+Build arbitrary supported circuits, execute them in the browser or Python, verify claims against independent references, and inspect evidence integrity.
 
-> Does **not** claim quantum advantage, quantum hardware execution, or experimental physics validation.
+> Does **not** claim quantum advantage, quantum hardware, or experimental physics validation.
 
 **Live site:** https://thebabeldragon.github.io/QProof/  
-*(feature branch work for live browser execution ships via PR; site updates after merge to `main`.)*
+*(updates after merge to `main` + Pages deploy)*
 
-## Install
+## Quick start — blank experiment (browser)
+
+1. Open the Pages workbench.
+2. **Experiment Lab** starts blank (or reset with “Reset blank”).
+3. Set qubits, add gates from the registry palette, **Validate**, **Run in browser**.
+4. Optionally open **Claim Verification** and attach an analytic or pasted reference.
+5. **Evidence Inspector** → verify integrity / export JSON.
+
+## Install & Python CLI
 
 ```bash
 git clone https://github.com/TheBabelDragon/QProof.git
 cd QProof
 pip install -e ".[dev]"
-```
 
-## CLI
-
-```bash
-qproof capabilities          # machine-readable capability registry
-qproof list                  # built-in fixtures (examples, not the limit)
-qproof run bell --shots 1024 --seed 42 --out report.json
-qproof run hadamard
-qproof run rx-pi
-qproof run phase
-qproof validate-circuit circuit.json
-qproof run-json experiment.json --out report.json
+qproof capabilities
+qproof run hadamard --out report.json
 qproof verify-evidence report.json
+qproof run-json experiment.json
 ```
 
-Exit code is 0 only when experiment status is `passed` (unless `--expect-fail`).
+## Supported gates (tested)
 
-## Supported today (tested)
+I, X, Y, Z, H, S, T, RX, RY, RZ, CNOT/CX, CZ  
+Little-endian qubit 0 = LSB. Python max 20 qubits; browser max **12**.
 
-| Area | Support |
-|------|---------|
-| Gates | I, X, Y, Z, H, S, T, RX, RY, RZ, CNOT/CX, CZ |
-| Qubits (Python) | 1…20 (soft limit) |
-| Qubits (browser) | 1…12 (freeze-safe) |
-| Measurement | Exact probabilities; shots + seed |
-| Verification | Normalization, finite amps, amplitude match (global-phase invariant), probabilities, fidelity, shot consistency, evidence integrity |
-| Input | Versioned circuit JSON + generic experiment JSON |
-| Backends | Python classical state-vector; **browser** classical state-vector (`web/simulator.js`); precomputed fixtures on Pages |
+## Workspaces
 
-**Not supported:** quantum hardware, noise, mid-circuit measurement, SWAP/Toffoli/U-gates, density matrices, GPU.
+| Workspace | Role |
+|-----------|------|
+| Experiment Lab | Blank-first circuit editor, live browser execution, amplitudes & shots |
+| Claim Verification | Reference-based scientific checks (passed / failed / inconclusive) |
+| Evidence Inspector | Import, integrity, tamper test, export |
 
-## Live browser workbench
+Fixtures (Bell, H, …) are **optional templates**, not architectural special cases.
 
-Under `web/`:
+## Evidence integrity
 
-1. Build or import a circuit (shared JSON format).
-2. **Run in browser** — amplitudes and probabilities computed at runtime (not a precomputed table).
-3. Load precomputed Python evidence for independent comparison.
-4. **Verify evidence integrity** — client-side structure/hash checks; authoritative path is `qproof verify-evidence`.
-5. **UI-only failure demo** — mutates displayed status only; it is **not** a scientific or integrity failure.
-6. **Tamper + re-verify** — alters a report without rehashing; real verifier must reject.
-
-See [docs/browser_execution.md](docs/browser_execution.md).
-
-## Python API
-
-```python
-from qproof import Circuit, capability_manifest, get_experiment, run_experiment
-from qproof import circuit_from_dict, experiment_from_spec
-
-print(capability_manifest()["gates"].keys())
-report = run_experiment(get_experiment("hadamard"))
-assert report.status.value == "passed"
-```
-
-## Evidence
-
-Schema `1.0.0` / `1.1.0`. Hashes bind report integrity — they do **not** prove scientific truth.
-
-```bash
-qproof verify-evidence report.json
-```
+- Canonical hash: `json.dumps(..., sort_keys=True, separators=(',', ':'))` then SHA-256.
+- **Missing `report_hash` cannot be labeled hash-verified.**
+- Hash match ≠ scientific truth.
+- Authoritative verifier: `qproof verify-evidence`.
 
 ## Tests
 
 ```bash
 pytest -q
-node web/test_simulator.mjs   # browser simulator unit tests (Node)
+node web/test_simulator.mjs
 ```
 
 ## License
