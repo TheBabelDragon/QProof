@@ -155,10 +155,6 @@
   };
   var NEEDS_THETA = { RX: 1, RY: 1, RZ: 1 };
 
-  /**
-   * Validate circuit dict {n_qubits, gates:[{gate,qubits,theta?}]}.
-   * Returns {ok:boolean, errors:string[]}.
-   */
   function validateCircuit(spec) {
     var errors = [];
     if (!spec || typeof spec !== "object") {
@@ -244,10 +240,6 @@
     return name;
   }
 
-  /**
-   * Run circuit. options: {shots, seed, initialIndex}
-   * Returns {amplitudes:[[re,im],...], probabilities:[], counts:{}, n_qubits, gate_count, depth, runtime_ms, backend}
-   */
   function runCircuit(spec, options) {
     options = options || {};
     var v = validateCircuit(spec);
@@ -318,7 +310,6 @@
     });
   }
 
-  /** Mulberry32 PRNG for reproducible sampling. */
   function mulberry32(seed) {
     var t = (seed >>> 0) || 1;
     return function () {
@@ -371,12 +362,10 @@
     );
   }
 
-  /** Global-phase-invariant amplitude distance (like Python verify_amplitudes). */
   function amplitudeDistance(obs, exp) {
     if (obs.length !== exp.length) return Infinity;
     var dot = c(0);
     for (var i = 0; i < obs.length; i++) {
-      // conj(exp)*obs
       var e = exp[i];
       var o = obs[i];
       dot = cadd(dot, [e[0] * o[0] + e[1] * o[1], e[0] * o[1] - e[1] * o[0]]);
@@ -387,7 +376,6 @@
     var maxd = 0;
     for (var j = 0; j < obs.length; j++) {
       var ee = exp[j];
-      // rotate exp by phase to match obs
       var re = cos * ee[0] - sin * ee[1];
       var im = sin * ee[0] + cos * ee[1];
       var dr = obs[j][0] - re;
@@ -398,7 +386,8 @@
   }
 
   function pureStateFidelity(a, b) {
-    // |⟨a|b⟩|²
+    // |⟨a|b⟩|² — returns 0 when dimensions differ (incompatible states)
+    if (!a || !b || a.length !== b.length) return 0;
     var dot = c(0);
     for (var i = 0; i < a.length; i++) {
       var x = a[i];
@@ -408,11 +397,6 @@
     return cabs2(dot);
   }
 
-  /**
-   * Build a lightweight evidence-like report from a live browser run.
-   * Integrity hashes use the same canonical JSON rules as Python when SubtleCrypto available;
-   * otherwise hashes are omitted (client notes).
-   */
   function buildBrowserReport(spec, result, meta) {
     meta = meta || {};
     var amps = result.amplitudes;
@@ -508,7 +492,7 @@
       checks.push({
         name: "shot_consistency",
         status: "passed",
-        detail: "no shots requested — exact probabilities only",
+        detail: "no shots requested - exact probabilities only",
       });
     }
 
@@ -562,13 +546,14 @@
         qproof_web: "0.3.0",
       },
       limitations: [
-        "Classical simulation only — no quantum hardware.",
+        "Classical simulation only - no quantum hardware.",
         "Browser backend is independent of Python for execution but not a cryptographic trust root.",
         "Without an independent reference, amplitude/fidelity checks are INCONCLUSIVE.",
         "Does not demonstrate quantum advantage.",
       ],
       integrity: {
         input_hash: null,
+        circuit_hash: null,
         report_hash: null,
       },
     };
