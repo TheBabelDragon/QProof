@@ -8,7 +8,7 @@ import platform
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -17,7 +17,6 @@ from .circuit import Circuit
 from .fidelity import pure_state_fidelity
 from .measurement import measure
 from .reference import (
-    bell_circuit_spec,
     bell_expected_amplitudes,
     bell_expected_probabilities,
     verify_amplitudes,
@@ -62,7 +61,12 @@ class CheckResult:
 
 @dataclass
 class Experiment:
-    """Definition of a falsifiable experiment."""
+    """Definition of a falsifiable experiment.
+
+    expected_* come from an independent reference or a documented supplied
+    expected state — not from re-running the production gate path for the
+    claim under test.
+    """
 
     experiment_id: str
     description: str
@@ -75,8 +79,9 @@ class Experiment:
     amplitude_tol: float = 1e-10
     probability_tol: float = 1e-10
     fidelity_tol: float = 1e-10
-    reference_id: str = "analytic/bell-v1"
+    reference_id: str = "supplied/expected-v1"
     limitations: List[str] = field(default_factory=list)
+    initial_state: Optional[StateVector] = None
 
 
 @dataclass
@@ -93,7 +98,7 @@ class ExperimentReport:
     depth: int
     shots: int
     seed: Optional[int]
-    observed_amplitudes: List[List[float]]  # [re, im]
+    observed_amplitudes: List[List[float]]
     observed_probabilities: List[float]
     expected_amplitudes: List[List[float]]
     expected_probabilities: List[float]
@@ -164,12 +169,16 @@ def _canonical_hash(obj: dict) -> str:
 
 
 def run_experiment(exp: Experiment) -> ExperimentReport:
-    """Execute *exp*, verify against independent reference, return report."""
+    """Execute *exp*, verify against independent/supplied reference, return report."""
     checks: List[CheckResult] = []
     t0 = time.perf_counter()
 
+    initial = exp.initial_state
+    if initial is None:
+        initial = getattr(exp, "_initial_state", None)
+
     try:
-        state = exp.circuit.run()
+        state = exp.circuit.run(initial=initial)
         amps = state.amplitudes.copy()
         probs = state.probabilities()
         meas = measure(state, shots=exp.shots, seed=exp.seed)
@@ -196,7 +205,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
     t1 = time.perf_counter()
     runtime_ms = (t1 - t0) * 1000
 
-    # 1. Dimension
     expected_dim = 1 << exp.circuit.n_qubits
     if amps.size != expected_dim:
         checks.append(
@@ -211,7 +219,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
             CheckResult("dimension", ExperimentStatus.PASSED, f"dim={amps.size}")
         )
 
-    # 2. Finite values
     if np.all(np.isfinite(amps)):
         checks.append(
             CheckResult("finite", ExperimentStatus.PASSED, "all amplitudes finite")
@@ -221,7 +228,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
             CheckResult("finite", ExperimentStatus.FAILED, "non-finite amplitudes")
         )
 
-    # 3. Normalization
     ok, detail = verify_normalization(amps, tol=exp.amplitude_tol)
     checks.append(
         CheckResult(
@@ -232,7 +238,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
         )
     )
 
-    # 4. Amplitudes vs independent reference
     ok, detail = verify_amplitudes(amps, exp.expected_amplitudes, tol=exp.amplitude_tol)
     checks.append(
         CheckResult(
@@ -243,7 +248,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
         )
     )
 
-    # 5. Probabilities
     ok, detail = verify_probabilities(
         probs, exp.expected_probabilities, tol=exp.probability_tol
     )
@@ -256,7 +260,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
         )
     )
 
-    # 6. Fidelity
     ref_state = StateVector(exp.expected_amplitudes, normalize=False)
     fid = pure_state_fidelity(state, ref_state)
     fid_ok = abs(fid - 1.0) <= exp.fidelity_tol
@@ -271,7 +274,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
         )
     )
 
-    # 7. Shot consistency (if applicable)
     if exp.shots > 0:
         ok, detail = verify_shot_consistency(
             meas.counts,
@@ -295,7 +297,6 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
             )
         )
 
-    # Aggregate status
     statuses = [c.status for c in checks]
     if any(s == ExperimentStatus.FAILED for s in statuses):
         status = ExperimentStatus.FAILED
@@ -364,7 +365,6 @@ def _build_report(
         limitations=list(exp.limitations),
         execution_mode="classical_statevector",
     )
-    # Integrity hashes
     input_obj = {
         "experiment_id": exp.experiment_id,
         "circuit": exp.circuit.to_spec(),
@@ -374,7 +374,7 @@ def _build_report(
     }
     report.input_hash = _canonical_hash(input_obj)
     body = report.to_dict()
-    body["integrity"]["report_hash"] = None  # exclude self
+    body["integrity"]["report_hash"] = None
     report.report_hash = _canonical_hash(body)
     return report
 
@@ -387,7 +387,7 @@ def bell_state_experiment(
     probability_tol: float = 1e-10,
     fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    """Primary demonstration: Bell-state preparation and verification."""
+    """Smoke / onboarding fixture: Bell-state preparation and verification."""
     circ = Circuit(2).h(0).cx(0, 1)
     return Experiment(
         experiment_id="bell-state-v1",
@@ -416,14 +416,14 @@ def bell_state_experiment(
             "No noise model; ideal gates assumed.",
             "Does not demonstrate quantum advantage.",
             "Shot statistics are a consistency check, not a formal hypothesis test.",
+            "Fixture for smoke/onboarding — not the capability boundary.",
         ],
     )
 
 
 def global_phase_experiment() -> Experiment:
-    """Secondary: Z-gate on |1⟩ introduces a global phase visible in amplitudes."""
+    """Phase fixture: X; Z on |0⟩ → −|1⟩."""
     circ = Circuit(1).x(0).z(0)
-    # |1⟩ after Z → -|1⟩
     expected = np.array([0.0, -1.0], dtype=np.complex128)
     return Experiment(
         experiment_id="global-phase-v1",
