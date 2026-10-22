@@ -8,54 +8,54 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="site-header">
+  <header class="top">
     <div class="brand">
-      <span class="logo">QProof</span>
-      <span class="tag">Capability-First Experiment Workbench</span>
+      <h1>QProof</h1>
+      <p class="tag">Classical state-vector experiment workbench — live browser execution, independent claim checks, evidence integrity.</p>
     </div>
-    <nav>
-      <a href="#lab-ws">Experiment Lab</a>
+    <nav class="nav">
+      <a href="#lab">Experiment Lab</a>
       <a href="#claim-ws">Claim Verification</a>
       <a href="#evidence-ws">Evidence Inspector</a>
+      <a href="https://github.com/TheBabelDragon/QProof" rel="noopener">Source</a>
     </nav>
   </header>
 
   <main>
-    <section class="hero card">
-      <h1>Classical state-vector experiments you can falsify</h1>
-      <p>Start from a <strong>blank circuit</strong>, execute it in the browser, optionally compare to a reference, and inspect evidence integrity. Classical simulation only.</p>
-      <div id="cap-summary" class="meta-grid"></div>
-      <details><summary>Capabilities JSON</summary><pre id="cap-raw" class="code-block"></pre></details>
-    </section>
-
-    <section id="lab-ws" class="card">
+    <section id="lab" class="card">
       <h2>Experiment Lab</h2>
-      <p class="muted">Blank-first: add gates, validate, run live. Templates are optional shortcuts.</p>
+      <p class="muted">Blank-first circuit builder. Execution is live in this browser (state-vector). Not quantum hardware.</p>
       <div class="builder-row">
         <label>Qubits <input type="number" id="n-qubits" min="1" max="12" value="1" /></label>
-        <label>Template
-          <select id="template-select">
-            <option value="">— blank —</option>
-            <option value="hadamard">Hadamard</option>
-            <option value="bell">Bell</option>
-            <option value="rx-pi">RX(π)</option>
-            <option value="phase">X then Z</option>
+        <label>Gate
+          <select id="gate-pick">
+            <option>H</option><option>X</option><option>Y</option><option>Z</option>
+            <option>S</option><option>T</option><option>I</option>
+            <option>RX</option><option>RY</option><option>RZ</option>
+            <option>CNOT</option><option>CZ</option>
           </select>
         </label>
-        <button type="button" id="btn-apply-template" class="btn">Apply template</button>
+        <label>Qubit(s) <input type="text" id="gate-qubits" value="0" placeholder="0 or 0,1" /></label>
+        <label>θ (rad) <input type="text" id="gate-theta" value="" placeholder="for RX/RY/RZ" /></label>
+        <button type="button" id="btn-add-gate" class="btn">Add gate</button>
+        <button type="button" id="btn-remove-last" class="btn">Remove last</button>
+        <button type="button" id="btn-move-up" class="btn">Move last up</button>
         <button type="button" id="btn-blank" class="btn">Blank</button>
       </div>
       <div class="builder-row">
-        <label>Gate
-          <select id="gate-pick"></select>
+        <label>Template
+          <select id="template-select">
+            <option value="">—</option>
+            <option value="hadamard">Hadamard</option>
+            <option value="bell">Bell</option>
+            <option value="rx-pi">RX(π)</option>
+            <option value="phase">Phase (X;Z)</option>
+          </select>
         </label>
-        <label>Qubits <input type="text" id="gate-qubits" value="0" placeholder="0 or 0,1" /></label>
-        <label>θ (rad) <input type="text" id="gate-theta" value="3.141592653589793" /></label>
-        <button type="button" id="btn-add-gate" class="btn primary">Add gate</button>
-        <button type="button" id="btn-remove-last" class="btn">Remove last</button>
-        <button type="button" id="btn-move-up" class="btn">Move last up</button>
+        <button type="button" id="btn-apply-template" class="btn">Load template</button>
+        <label class="file-label">Import circuit <input type="file" id="file-circuit" accept="application/json,.json" /></label>
+        <label class="file-label">Import evidence <input type="file" id="file-import" accept="application/json,.json" /></label>
       </div>
-      <div id="gate-palette" class="gate-palette"></div>
       <div id="gate-list" class="gate-list"></div>
       <div id="circuit-viz" class="circuit-viz"></div>
       <div id="circuit-meta" class="meta-grid"></div>
@@ -73,7 +73,7 @@
 
     <section id="claim-ws" class="card">
       <h2>Claim Verification</h2>
-      <p class="muted">Without a compatible reference, amplitude/fidelity checks are <strong>inconclusive</strong>. References require matching qubit count, initial state, and circuit gates; mismatches are reported explicitly (not as zero fidelity or infinite error).</p>
+      <p class="muted">Select a reference, then click <strong>Run live</strong> — scientific checks run automatically with the execution. Without a compatible reference, amplitude/fidelity/probability checks are <strong>inconclusive</strong> (not a simulation failure). References require matching qubit count, initial state, and circuit gates; mismatches are reported explicitly. Use <em>Verify claim</em> only to re-evaluate the last run against a newly selected reference.</p>
       <div class="builder-row">
         <label>Reference
           <select id="ref-mode">
@@ -99,37 +99,30 @@
             <option value="">— select fixture —</option>
             <option value="evidence/bell-state-v1.json">bell-state-v1</option>
             <option value="evidence/hadamard-v1.json">hadamard-v1</option>
-            <option value="evidence/rx-pi-v1.json">rx-pi-v1</option>
-            <option value="evidence/global-phase-v1.json">global-phase-v1</option>
           </select>
         </label>
-        <button type="button" id="btn-load" class="btn">Load fixture</button>
-        <button type="button" id="btn-use-live" class="btn primary">Use last live report</button>
+        <button type="button" id="btn-load-fixture" class="btn">Load fixture</button>
+        <button type="button" id="btn-use-last" class="btn">Use last live report</button>
         <button type="button" id="btn-verify-integrity" class="btn">Verify integrity</button>
-        <button type="button" id="btn-tamper-test" class="btn">Tamper test</button>
-        <button type="button" id="btn-ui-demo" class="btn">UI-only demo</button>
-        <button type="button" id="btn-download" class="btn">Download JSON</button>
-        <label class="file-label">Import evidence <input type="file" id="file-import" accept="application/json,.json" /></label>
+        <button type="button" id="btn-export-report" class="btn">Export report</button>
       </div>
       <div class="badge-row">
         <span id="badge-status" class="badge">—</span>
-        <span id="badge-mode" class="badge"></span>
-        <span id="badge-experiment" class="badge"></span>
-        <span id="badge-fidelity" class="badge"></span>
+        <span id="badge-mode" class="badge">—</span>
+        <span id="badge-experiment" class="badge">—</span>
+        <span id="badge-fidelity" class="badge">—</span>
       </div>
+      <div id="amp-table" class="amp-table"></div>
+      <div id="checks-list" class="checks-list"></div>
       <div id="evidence-meta" class="meta-grid"></div>
-      <table id="check-table" class="check-table"><thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Tol</th></tr></thead><tbody></tbody></table>
-      <table id="amp-table" class="amp-table"><thead><tr><th>Basis</th><th>Re</th><th>Im</th><th>P</th></tr></thead><tbody></tbody></table>
-      <div id="prob-bars"></div>
-      <p id="runner-status" class="runner-status"></p>
+      <pre id="evidence-raw" class="code-block"></pre>
       <p id="integrity-status" class="runner-status"></p>
-      <details><summary>Raw evidence JSON</summary><pre id="evidence-raw" class="code-block"></pre></details>
-      <p id="evidence-error" class="error" hidden></p>
+      <p id="runner-status" class="runner-status"></p>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <p>QProof · classical simulation only · not quantum hardware</p>
+  <footer class="foot">
+    <p>Classical simulation only. Does not demonstrate quantum advantage. Independent references required for scientific claims.</p>
   </footer>
 
   <script src="canonical_hash.js"></script>
