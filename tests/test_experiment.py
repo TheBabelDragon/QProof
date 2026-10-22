@@ -59,12 +59,10 @@ def test_negative_wrong_expected_fails():
     assert "amplitudes" in failed_names or "fidelity" in failed_names
 
 
-def test_negative_corrupted_tolerance_fails():
+def test_negative_orthogonal_expected_fails():
+    """Expected |01> while circuit prepares Bell - must FAIL."""
     exp = bell_state_experiment(shots=0)
-    exp.expected_amplitudes = exp.expected_amplitudes * 0.99
-    exp.expected_amplitudes = exp.expected_amplitudes / np.linalg.norm(
-        exp.expected_amplitudes
-    )
+    exp.expected_amplitudes = np.array([0, 1, 0, 0], dtype=np.complex128)
     exp.expected_probabilities = np.abs(exp.expected_amplitudes) ** 2
     report = run_experiment(exp)
     assert report.status == ExperimentStatus.FAILED
