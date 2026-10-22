@@ -83,39 +83,20 @@ def experiment_from_spec(
     probability_tol: float = 1e-10,
     fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    n = int(circuit_dict["n_qubits"])
-    circ = Circuit(n)
-    for g in circuit_dict.get("gates") or circuit_dict.get("spec") or []:
-        name = str(g["gate"]).upper()
-        qs = list(g["qubits"])
-        if name == "H":
-            circ = circ.h(qs[0])
-        elif name == "X":
-            circ = circ.x(qs[0])
-        elif name == "Y":
-            circ = circ.y(qs[0])
-        elif name == "Z":
-            circ = circ.z(qs[0])
-        elif name == "S":
-            circ = circ.s(qs[0])
-        elif name == "T":
-            circ = circ.t(qs[0])
-        elif name == "RX":
-            circ = circ.rx(qs[0], float(g["theta"]))
-        elif name == "RY":
-            circ = circ.ry(qs[0], float(g["theta"]))
-        elif name == "RZ":
-            circ = circ.rz(qs[0], float(g["theta"]))
-        elif name in ("CNOT", "CX"):
-            circ = circ.cx(qs[0], qs[1])
-        elif name == "CZ":
-            circ = circ.cz(qs[0], qs[1])
-        else:
-            raise ValueError(f"unsupported gate in circuit_dict: {name}")
-    amps = np.array(
-        [complex(a[0], a[1]) for a in expected_amplitudes], dtype=np.complex128
-    )
-    return Experiment(
+    from .circuit_spec import parse_circuit_dict
+    from .statevector import StateVector
+
+    circ, initial = parse_circuit_dict(circuit_dict)
+    amps = np.asarray(expected_amplitudes, dtype=np.complex128).ravel()
+    if amps.size != (1 << circ.n_qubits):
+        raise ValueError(
+            f"expected_amplitudes length {amps.size} != 2^{circ.n_qubits}"
+        )
+    norm = np.linalg.norm(amps)
+    if norm == 0:
+        raise ValueError("expected_amplitudes is the zero vector")
+    amps = amps / norm
+    exp = Experiment(
         experiment_id=experiment_id,
         description=description,
         claim=claim,
@@ -124,39 +105,35 @@ def experiment_from_spec(
         expected_probabilities=np.abs(amps) ** 2,
         shots=shots,
         seed=seed,
-        reference_id=reference_id,
-        limitations=list(limitations or []),
         amplitude_tol=amplitude_tol,
         probability_tol=probability_tol,
         fidelity_tol=fidelity_tol,
+        reference_id=reference_id,
+        limitations=list(limitations or [
+            "Classical simulation only.",
+            "Expected state supplied by caller; independence depends on how it was derived.",
+        ]),
     )
+    exp._initial_state = initial  # type: ignore[attr-defined]
+    return exp
 
 
-BUILTIN_FACTORIES: Dict[str, Callable[[], Experiment]] = {
+def _bell(**kwargs) -> Experiment:
+    from .experiment import bell_state_experiment
+    return bell_state_experiment(**kwargs)
+
+
+def _phase(**kwargs) -> Experiment:
+    from .experiment import global_phase_experiment
+    return global_phase_experiment()
+
+
+BUILTIN_FACTORIES: Dict[str, Callable[..., Experiment]] = {
+    "bell": _bell,
+    "phase": _phase,
     "hadamard": hadamard_experiment,
     "rx-pi": rx_pi_experiment,
 }
-
-
-def get_experiment(name: str) -> Experiment:
-    from .experiment import bell_state_experiment, global_phase_experiment
-
-    aliases = {
-        "bell": "bell",
-        "bell-state": "bell",
-        "bell-state-v1": "bell",
-        "phase": "phase",
-        "global-phase": "phase",
-        "global-phase-v1": "phase",
-    }
-    key = aliases.get(name, name)
-    if key == "bell":
-        return bell_state_experiment(shots=0, seed=None)
-    if key == "phase":
-        return global_phase_experiment()
-    if key not in BUILTIN_FACTORIES:
-        raise KeyError(f"unknown experiment {name!r}; known: {[e['name'] for e in list_experiments()]}")
-    return BUILTIN_FACTORIES[key]()
 
 
 def list_experiments() -> List[dict]:
@@ -166,3 +143,15 @@ def list_experiments() -> List[dict]:
         {"name": "hadamard", "experiment_id": "hadamard-v1", "role": "1q analytic"},
         {"name": "rx-pi", "experiment_id": "rx-pi-v1", "role": "parameterized rotation"},
     ]
+
+
+def get_experiment(name: str, **kwargs) -> Experiment:
+    key = name.lower().strip()
+    if key not in BUILTIN_FACTORIES:
+        raise KeyError(
+            f"unknown experiment {name!r}; choose from {sorted(BUILTIN_FACTORIES)}"
+        )
+    factory = BUILTIN_FACTORIES[key]
+    if key == "bell":
+        return factory(**kwargs)
+    return factory()
