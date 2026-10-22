@@ -1,5 +1,14 @@
 /**
  * Canonical serialization + SHA-256 matching qproof.canonical.
+ *
+ * Rules (shared with Python):
+ * - Objects: keys sorted lexicographically (manual dumps; do not rely on
+ *   JSON.stringify key order — engines reorder integer-index keys).
+ * - Arrays: order preserved
+ * - Numbers: finite only; 15 significant digits; integral |x|<2^53 as int
+ * - Strings: ensure_ascii (non-ASCII as \\uXXXX)
+ * - report_hash is set to null before hashing the report body
+ * - Hash form: sha256: + lowercase hex
  */
 (function (global) {
   "use strict";
@@ -57,35 +66,40 @@
         var s1 = rotr(17, w[t-2]) ^ rotr(19, w[t-2]) ^ (w[t-2] >>> 10);
         w[t] = (w[t-16] + s0 + w[t-7] + s1) | 0;
       }
-      var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],gv=H[6],h=H[7];
+      var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
       for (t = 0; t < 64; t++) {
         var S1 = rotr(6, e) ^ rotr(11, e) ^ rotr(25, e);
-        var ch = (e & f) ^ (~e & gv);
-        var t1 = (h + S1 + ch + K[t] + w[t]) | 0;
+        var ch = (e & f) ^ (~e & g);
+        var temp1 = (h + S1 + ch + K[t] + w[t]) | 0;
         var S0 = rotr(2, a) ^ rotr(13, a) ^ rotr(22, a);
         var maj = (a & b) ^ (a & c) ^ (b & c);
-        var t2 = (S0 + maj) | 0;
-        h=gv; gv=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+        var temp2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + temp1) | 0; d = c; c = b; b = a; a = (temp1 + temp2) | 0;
       }
-      H[0]=(H[0]+a)|0; H[1]=(H[1]+b)|0; H[2]=(H[2]+c)|0; H[3]=(H[3]+d)|0;
-      H[4]=(H[4]+e)|0; H[5]=(H[5]+f)|0; H[6]=(H[6]+gv)|0; H[7]=(H[7]+h)|0;
+      H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+      H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
     }
     var hex = "";
-    for (i = 0; i < 8; i++) {
+    for (var i = 0; i < 8; i++) {
       var v = H[i] >>> 0;
       hex += ("00000000" + v.toString(16)).slice(-8);
     }
     return hex;
   }
 
+  function normalizeNumber(obj) {
+    if (!Number.isFinite(obj)) throw new Error("non-finite number");
+    if (Number.isInteger(obj) && Math.abs(obj) < Math.pow(2, 53)) {
+      return obj;
+    }
+    var f = parseFloat(Number(obj).toPrecision(15));
+    if (Number.isInteger(f) && Math.abs(f) < Math.pow(2, 53)) return f;
+    return f;
+  }
+
   function normalize(obj) {
     if (obj === null || typeof obj === "string" || typeof obj === "boolean") return obj;
-    if (typeof obj === "number") {
-      if (!Number.isFinite(obj)) throw new Error("non-finite number");
-      var f = parseFloat(obj.toPrecision(15));
-      if (Number.isInteger(f) && Math.abs(f) < Math.pow(2, 53)) return f;
-      return f;
-    }
+    if (typeof obj === "number") return normalizeNumber(obj);
     if (Array.isArray(obj)) return obj.map(normalize);
     if (typeof obj === "object") {
       var keys = Object.keys(obj).sort();
@@ -96,8 +110,57 @@
     throw new Error("unsupported type");
   }
 
+  function escapeString(str) {
+    var out = "";
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c === 0x22) out += '\\"';
+      else if (c === 0x5c) out += "\\\\";
+      else if (c === 0x08) out += "\\b";
+      else if (c === 0x0c) out += "\\f";
+      else if (c === 0x0a) out += "\\n";
+      else if (c === 0x0d) out += "\\r";
+      else if (c === 0x09) out += "\\t";
+      else if (c < 0x20) {
+        var h = c.toString(16);
+        out += "\\u" + "0000".slice(h.length) + h;
+      } else if (c >= 0x7f) {
+        var hx = c.toString(16);
+        out += "\\u" + "0000".slice(hx.length) + hx;
+      } else {
+        out += str.charAt(i);
+      }
+    }
+    return out;
+  }
+
+  function dumpsNormalized(obj) {
+    if (obj === null) return "null";
+    if (typeof obj === "boolean") return obj ? "true" : "false";
+    if (typeof obj === "number") {
+      if (!Number.isFinite(obj)) throw new Error("non-finite number");
+      if (Object.is(obj, -0)) return "0";
+      return String(obj);
+    }
+    if (typeof obj === "string") return '"' + escapeString(obj) + '"';
+    if (Array.isArray(obj)) {
+      var parts = [];
+      for (var i = 0; i < obj.length; i++) parts.push(dumpsNormalized(obj[i]));
+      return "[" + parts.join(",") + "]";
+    }
+    if (typeof obj === "object") {
+      var keys = Object.keys(obj).sort();
+      var items = [];
+      for (var k = 0; k < keys.length; k++) {
+        items.push('"' + escapeString(keys[k]) + '":' + dumpsNormalized(obj[keys[k]]));
+      }
+      return "{" + items.join(",") + "}";
+    }
+    throw new Error("unsupported type");
+  }
+
   function canonicalDumps(obj) {
-    return JSON.stringify(normalize(obj));
+    return dumpsNormalized(normalize(obj));
   }
 
   function canonicalHash(obj) {
@@ -113,8 +176,12 @@
 
   function reportHash(report) {
     var body = JSON.parse(JSON.stringify(report));
-    if (!body.integrity || typeof body.integrity !== "object") body.integrity = {};
-    body.integrity.report_hash = null;
+    if (!body.integrity || typeof body.integrity !== "object") {
+      body.integrity = { report_hash: null };
+    } else {
+      body.integrity = Object.assign({}, body.integrity);
+      body.integrity.report_hash = null;
+    }
     return canonicalHash(body);
   }
 
