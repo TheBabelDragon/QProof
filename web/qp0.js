@@ -1,1 +1,0 @@
-window.__QP_PARTS=window.__QP_PARTS||[];window.__QP_PARTS[0]="PLACEHOLDER_TOO_LONG_SEE_LOCAL";
