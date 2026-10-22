@@ -16,6 +16,8 @@ htmlcov/
 *.json
 !evidence/*.json
 !web/evidence/*.json
+!web/references.json
+!web/capabilities.json
 !schemas/*.json
 node_modules/
 web/dist/

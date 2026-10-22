@@ -15,8 +15,8 @@ from .reference import (
 
 
 def _hadamard_expected() -> np.ndarray:
-    s = 1.0 / np.sqrt(2.0)
-    return np.array([s, s], dtype=np.complex128)
+    from .reference_registry import resolve_reference
+    return resolve_reference("analytic/hadamard-v1").amplitudes_array()
 
 
 def _rx_pi_expected() -> np.ndarray:
@@ -83,21 +83,15 @@ def experiment_from_spec(
     probability_tol: float = 1e-10,
     fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    """Build an Experiment from a validated circuit dict + expected amplitudes.
-
-    This is the generic path: new experiments do not require a new runner.
-    """
+    """Build an Experiment from a validated circuit dict + expected amplitudes."""
     from .circuit_spec import circuit_from_dict
 
     circ, initial = circuit_from_dict(circuit_dict)
-    # If non-zero initial, bake it by prepending nothing — Circuit.run accepts initial
-    # We store initial by wrapping run via a small adapter circuit only if needed.
     amps = np.asarray(expected_amplitudes, dtype=np.complex128).ravel()
     if amps.size != (1 << circ.n_qubits):
         raise ValueError(
             f"expected_amplitudes length {amps.size} != 2^{circ.n_qubits}"
         )
-    # Normalize expected for probability derivation
     norm = np.linalg.norm(amps)
     if norm == 0:
         raise ValueError("expected_amplitudes is the zero vector")
@@ -120,12 +114,10 @@ def experiment_from_spec(
             "Expected state supplied by caller; independence depends on how it was derived.",
         ]),
     )
-    # Attach initial state for runner (optional attribute)
     exp._initial_state = initial  # type: ignore[attr-defined]
     return exp
 
 
-# Lazy imports of built-ins to avoid circular deps at module load in some paths
 def _bell(**kwargs) -> Experiment:
     from .experiment import bell_state_experiment
     return bell_state_experiment(**kwargs)
@@ -160,7 +152,6 @@ def get_experiment(name: str, **kwargs) -> Experiment:
             f"unknown experiment {name!r}; choose from {sorted(BUILTIN_FACTORIES)}"
         )
     factory = BUILTIN_FACTORIES[key]
-    # Only bell accepts shots/seed kwargs currently
     if key == "bell":
         return factory(**kwargs)
     return factory()

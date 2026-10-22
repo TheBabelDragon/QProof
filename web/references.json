@@ -1,0 +1,100 @@
+{
+  "registry_version": "1.0.0",
+  "references": {
+    "analytic/hadamard-v1": {
+      "reference_id": "analytic/hadamard-v1",
+      "version": "1.0.0",
+      "description": "H|0> = (|0>+|1>)/sqrt(2) under little-endian ordering.",
+      "n_qubits": 1,
+      "circuit_gates": [
+        {
+          "gate": "H",
+          "qubits": [
+            0
+          ]
+        }
+      ],
+      "initial_state": "zero",
+      "expected_amplitudes": [
+        [
+          0.7071067811865475,
+          0.0
+        ],
+        [
+          0.7071067811865475,
+          0.0
+        ]
+      ],
+      "expected_probabilities": [
+        0.5,
+        0.5
+      ],
+      "amplitude_tol": 1e-10,
+      "probability_tol": 1e-10,
+      "fidelity_tol": 1e-10,
+      "derivation": "H = (1/sqrt(2)) * [[1,1],[1,-1]]. H|0> = (1/sqrt(2))(|0>+|1>). Basis index 0 = |0>, index 1 = |1>.",
+      "comparison_methods": [
+        "global_phase_invariant_amplitudes",
+        "exact_probabilities",
+        "pure_state_fidelity",
+        "normalization"
+      ]
+    },
+    "analytic/bell-v1": {
+      "reference_id": "analytic/bell-v1",
+      "version": "1.0.0",
+      "description": "Bell state (|00>+|11>)/sqrt(2) via H(0); CNOT(0,1) on |00>, little-endian (qubit 0 = LSB).",
+      "n_qubits": 2,
+      "circuit_gates": [
+        {
+          "gate": "H",
+          "qubits": [
+            0
+          ]
+        },
+        {
+          "gate": "CNOT",
+          "qubits": [
+            0,
+            1
+          ]
+        }
+      ],
+      "initial_state": "zero",
+      "expected_amplitudes": [
+        [
+          0.7071067811865475,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.7071067811865475,
+          0.0
+        ]
+      ],
+      "expected_probabilities": [
+        0.5,
+        0.0,
+        0.0,
+        0.5
+      ],
+      "amplitude_tol": 1e-10,
+      "probability_tol": 1e-10,
+      "fidelity_tol": 1e-10,
+      "derivation": "|00> --H(0)--> (|00>+|01>)/sqrt(2) --CNOT(0,1)--> (|00>+|11>)/sqrt(2). Index layout: 0=|00>, 1=|01>, 2=|10>, 3=|11>.",
+      "comparison_methods": [
+        "global_phase_invariant_amplitudes",
+        "exact_probabilities",
+        "pure_state_fidelity",
+        "normalization"
+      ]
+    }
+  }
+}
