@@ -1,15 +1,15 @@
 """Evidence schema validation and independent integrity verification.
 
 Hashes prove integrity of a report body, not scientific truth or authorship.
-Missing report_hash is structure-ok but NOT integrity-verified.
+Missing report_hash ⇒ integrity unverified (never PASS).
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
+from .canonical import circuit_hash, report_hash as compute_report_hash
 from .experiment import ExperimentStatus, SCHEMA_VERSION
 
 SUPPORTED_SCHEMA_VERSIONS = {"1.0.0", "1.1.0"}
@@ -26,19 +26,7 @@ REQUIRED_TOP = [
 ]
 
 
-def _canonical_hash(obj: dict) -> str:
-    """Canonical SHA-256: sort_keys, separators=(',', ':'), UTF-8."""
-    raw = json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return "sha256:" + hashlib.sha256(raw).hexdigest()
-
-
-def canonical_hash(obj: dict) -> str:
-    """Public alias for evidence hash computation."""
-    return _canonical_hash(obj)
-
-
 def validate_evidence_structure(report: Dict[str, Any]) -> List[str]:
-    """Structural validation — returns error messages (empty ⇒ ok)."""
     errors: List[str] = []
     if not isinstance(report, dict):
         return ["report must be a JSON object"]
@@ -84,7 +72,6 @@ def validate_evidence_structure(report: Dict[str, Any]) -> List[str]:
 
 
 def aggregate_status(check_statuses: List[str]) -> str:
-    """Aggregate per-check statuses. FAIL beats INCONCLUSIVE beats PASS."""
     if any(s == ExperimentStatus.FAILED.value for s in check_statuses):
         return ExperimentStatus.FAILED.value
     if any(s == ExperimentStatus.INCONCLUSIVE.value for s in check_statuses):
@@ -95,7 +82,6 @@ def aggregate_status(check_statuses: List[str]) -> str:
 
 
 def status_consistent_with_checks(report: Dict[str, Any]) -> Optional[str]:
-    """Return error message if overall status contradicts checks."""
     checks = report.get("checks")
     status = report.get("status")
     if not isinstance(checks, list) or status is None:
@@ -107,78 +93,63 @@ def status_consistent_with_checks(report: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def verify_report_integrity(report: Dict[str, Any]) -> Tuple[bool, str]:
-    """Structure + optional hash recompute.
-
-    Returns (ok, detail).
-    - Structural failure ⇒ ok=False
-    - Hash mismatch ⇒ ok=False
-    - Missing report_hash ⇒ ok=False for *integrity* (cannot claim hash-verified).
-      Use verify_evidence_detailed for layered outcomes.
-    """
-    detailed = verify_evidence_detailed(report)
-    if not detailed["structure_ok"]:
-        return False, "; ".join(detailed["structure_errors"]) or "structure invalid"
-    if detailed["integrity"] == "verified":
-        return True, detailed["detail"]
-    if detailed["integrity"] == "mismatch":
-        return False, detailed["detail"]
-    # missing hash or status inconsistency treated as not fully verified
-    if detailed["integrity"] == "absent":
-        return False, detailed["detail"]
-    return False, detailed["detail"]
-
-
 def verify_evidence_detailed(report: Dict[str, Any]) -> Dict[str, Any]:
-    """Layered verification result (structure / integrity / status consistency).
-
-    integrity: verified | mismatch | absent | n/a
-    Does not evaluate scientific claim truth — only artifact consistency.
-    """
+    """Layered: structure / integrity / scientific_status (declared only)."""
     structure_errors = validate_evidence_structure(report)
-    status_err = None
-    if not structure_errors:
-        status_err = status_consistent_with_checks(report)
+    status_err = None if structure_errors else status_consistent_with_checks(report)
 
     result: Dict[str, Any] = {
+        "structure": "invalid" if structure_errors else "valid",
         "structure_ok": len(structure_errors) == 0,
         "structure_errors": structure_errors,
         "status_consistency_error": status_err,
-        "integrity": "n/a",
+        "integrity": "unverified",
+        "hash_verified": False,
+        "circuit_hash_ok": None,
         "detail": "",
         "ok": False,
-        "hash_verified": False,
-        "scientific_status": report.get("status") if isinstance(report, dict) else None,
+        "scientific_checks": report.get("status") if isinstance(report, dict) else None,
         "note": (
             "Hash verification establishes consistency with hashed content, "
-            "not authorship or scientific truth."
+            "not authorship or scientific truth. Scientific status is taken from "
+            "the report's own checks and is independent of integrity."
         ),
     }
 
     if structure_errors:
         result["detail"] = "; ".join(structure_errors)
-        result["integrity"] = "n/a"
+        result["integrity"] = "unverified"
         return result
 
     integrity = report.get("integrity") or {}
     declared = integrity.get("report_hash") if isinstance(integrity, dict) else None
+    declared_ch = integrity.get("circuit_hash") if isinstance(integrity, dict) else None
+
+    if declared_ch and isinstance(report.get("circuit"), dict):
+        recomputed_ch = circuit_hash(report["circuit"])
+        result["circuit_hash_ok"] = recomputed_ch == declared_ch
+        if not result["circuit_hash_ok"]:
+            result["integrity"] = "failed"
+            result["detail"] = (
+                f"circuit_hash mismatch: declared {declared_ch}, recomputed {recomputed_ch}"
+            )
+            result["ok"] = False
+            return result
+
     if not declared:
-        result["integrity"] = "absent"
+        result["integrity"] = "unverified"
         result["detail"] = (
-            "structure valid; report_hash absent — cannot claim integrity verification"
+            "structure valid; report_hash absent — integrity unverified "
+            "(legacy or incomplete report)"
         )
         if status_err:
             result["detail"] += "; " + status_err
         result["ok"] = False
         return result
 
-    body = json.loads(json.dumps(report))
-    if "integrity" not in body:
-        body["integrity"] = {}
-    body["integrity"]["report_hash"] = None
-    recomputed = _canonical_hash(body)
+    recomputed = compute_report_hash(report)
     if recomputed != declared:
-        result["integrity"] = "mismatch"
+        result["integrity"] = "failed"
         result["detail"] = (
             f"report_hash mismatch: declared {declared}, recomputed {recomputed}"
         )
@@ -188,24 +159,32 @@ def verify_evidence_detailed(report: Dict[str, Any]) -> Dict[str, Any]:
     result["integrity"] = "verified"
     result["hash_verified"] = True
     result["detail"] = "structure valid; report_hash matches"
+    if declared_ch and result["circuit_hash_ok"]:
+        result["detail"] += "; circuit_hash matches"
     if status_err:
         result["detail"] += "; " + status_err
-        result["ok"] = False  # integrity ok but status contradiction
+        result["ok"] = False
     else:
         result["ok"] = True
     return result
 
 
+def verify_report_integrity(report: Dict[str, Any]) -> Tuple[bool, str]:
+    detailed = verify_evidence_detailed(report)
+    return detailed["ok"] and detailed["hash_verified"], detailed["detail"]
+
+
 def verify_evidence_file(path: str) -> Dict[str, Any]:
-    """Load JSON from path and run detailed integrity verification."""
     with open(path, encoding="utf-8") as f:
         report = json.load(f)
     detailed = verify_evidence_detailed(report)
     return {
         "path": path,
-        "ok": detailed["ok"],
+        "ok": detailed["ok"] and detailed["hash_verified"],
         "hash_verified": detailed["hash_verified"],
         "integrity": detailed["integrity"],
+        "structure": detailed["structure"],
+        "scientific_checks": detailed["scientific_checks"],
         "detail": detailed["detail"],
         "structure_ok": detailed["structure_ok"],
         "structure_errors": detailed["structure_errors"],
