@@ -78,11 +78,6 @@
     return { ok: true, reason: "ok" };
   }
 
-  /**
-   * Single explicit reference-resolution path.
-   * Returns { meta, preconditionReason, refId, error? }.
-   * Expected values are independent of the circuit result.
-   */
   function resolveSelectedReference(spec, result) {
     const mode = ($("#ref-mode") && $("#ref-mode").value) || "";
     const tol = parseFloat(($("#ref-tol") && $("#ref-tol").value) || "1e-10") || 1e-10;
@@ -130,7 +125,6 @@
         preconditionStatus = "inconclusive";
         preconditionReason = "Reference " + ref.id + " preconditions not met: " + match.reason;
       } else {
-        // Independent expected values (not derived from result)
         expectedAmps = ref.amps.map(function (a) {
           return [a[0], a[1]];
         });
@@ -198,11 +192,6 @@
     if (el) el.value = mode || "";
   }
 
-  function getReferenceMode() {
-    return ($("#ref-mode") && $("#ref-mode").value) || "";
-  }
-
-  /** Apply template and select/clear compatible analytic reference. */
   function applyTemplate(id) {
     const t = TEMPLATES[id];
     if (!t) return;
@@ -415,16 +404,33 @@
     });
   }
 
-  // Useful initial workflow: Hadamard template + compatible analytic reference
   applyTemplate("hadamard");
   if ($("#template-select")) $("#template-select").value = "hadamard";
 
-  // Export for tests
   window.QProofApp = {
     resolveSelectedReference: resolveSelectedReference,
     analyticRef: analyticRef,
     circuitMatchesRef: circuitMatchesRef,
     applyTemplate: applyTemplate,
     TEMPLATES: TEMPLATES,
+    getBuilder: function () { return { n_qubits: builder.n_qubits, gates: builder.gates.slice() }; },
+    setBuilder: function (b) {
+      builder = { n_qubits: b.n_qubits, gates: (b.gates || []).map(function (g) {
+        var o = { gate: g.gate, qubits: (g.qubits || []).slice() };
+        if (g.theta != null) o.theta = g.theta;
+        return o;
+      })};
+      if (document.querySelector("#n-qubits")) document.querySelector("#n-qubits").value = builder.n_qubits;
+      refreshBuilder();
+    },
+    markStale: markStale,
+    refreshBuilder: refreshBuilder,
+    applyReport: applyReport,
+    setStatus: setStatus,
+    getCurrentReport: function () { return currentReport; },
+    setCurrentReport: function (r) { currentReport = r; },
+    getLastRun: function () { return lastRun; },
+    setLastRun: function (r) { lastRun = r; },
+    setReferenceMode: setReferenceMode,
   };
 })();
