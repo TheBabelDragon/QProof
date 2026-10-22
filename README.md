@@ -6,7 +6,8 @@ QProof verifies claims about circuits it can simulate. The Bell-state experiment
 
 > Does **not** claim quantum advantage, quantum hardware execution, or experimental physics validation.
 
-**Live site:** https://thebabeldragon.github.io/QProof/
+**Live site:** https://thebabeldragon.github.io/QProof/  
+*(feature branch work for live browser execution ships via PR; site updates after merge to `main`.)*
 
 ## Install
 
@@ -37,13 +38,27 @@ Exit code is 0 only when experiment status is `passed` (unless `--expect-fail`).
 | Area | Support |
 |------|---------|
 | Gates | I, X, Y, Z, H, S, T, RX, RY, RZ, CNOT/CX, CZ |
-| Qubits | 1…20 (soft limit) |
-| Measurement | Exact probabilities; shots + deterministic seed |
-| Verification | Normalization, finite amps, amplitude match (global-phase invariant), probabilities, fidelity, shot z-score, evidence integrity |
+| Qubits (Python) | 1…20 (soft limit) |
+| Qubits (browser) | 1…12 (freeze-safe) |
+| Measurement | Exact probabilities; shots + seed |
+| Verification | Normalization, finite amps, amplitude match (global-phase invariant), probabilities, fidelity, shot consistency, evidence integrity |
 | Input | Versioned circuit JSON + generic experiment JSON |
-| Backends | Classical state-vector; precomputed evidence on Pages |
+| Backends | Python classical state-vector; **browser** classical state-vector (`web/simulator.js`); precomputed fixtures on Pages |
 
-**Not supported:** quantum hardware, noise, mid-circuit measurement, SWAP/Toffoli/U-gates, density matrices.
+**Not supported:** quantum hardware, noise, mid-circuit measurement, SWAP/Toffoli/U-gates, density matrices, GPU.
+
+## Live browser workbench
+
+Under `web/`:
+
+1. Build or import a circuit (shared JSON format).
+2. **Run in browser** — amplitudes and probabilities computed at runtime (not a precomputed table).
+3. Load precomputed Python evidence for independent comparison.
+4. **Verify evidence integrity** — client-side structure/hash checks; authoritative path is `qproof verify-evidence`.
+5. **UI-only failure demo** — mutates displayed status only; it is **not** a scientific or integrity failure.
+6. **Tamper + re-verify** — alters a report without rehashing; real verifier must reject.
+
+See [docs/browser_execution.md](docs/browser_execution.md).
 
 ## Python API
 
@@ -58,7 +73,7 @@ assert report.status.value == "passed"
 
 ## Evidence
 
-Schema `1.0.0` (compatible path toward `1.1.0`). Hashes bind report integrity — they do not prove scientific truth.
+Schema `1.0.0` / `1.1.0`. Hashes bind report integrity — they do **not** prove scientific truth.
 
 ```bash
 qproof verify-evidence report.json
@@ -68,11 +83,8 @@ qproof verify-evidence report.json
 
 ```bash
 pytest -q
+node web/test_simulator.mjs   # browser simulator unit tests (Node)
 ```
-
-## Pages
-
-Static workbench under `web/`. Loads **precomputed** verified reports and the capability registry. Authoritative runs use the Python CLI.
 
 ## License
 

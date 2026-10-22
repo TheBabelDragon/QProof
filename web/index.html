@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>QProof — Capability-First Verification</title>
-  <meta name="description" content="Extensible classical state-vector verification with falsifiable claims and machine-readable evidence." />
+  <title>QProof — Live Browser Verification</title>
+  <meta name="description" content="Capability-first classical state-vector simulation with live browser execution and evidence verification." />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -14,14 +14,13 @@
       <div class="logo" aria-hidden="true">Q</div>
       <div>
         <h1>QProof</h1>
-        <p class="tagline">Capability-first circuit simulation · Falsifiable verification · Evidence reports</p>
+        <p class="tagline">Live browser simulation · Falsifiable verification · Evidence integrity</p>
       </div>
     </div>
     <nav class="wrap nav" aria-label="Primary">
       <a href="#overview">Overview</a>
       <a href="#capabilities">Capabilities</a>
-      <a href="#gallery">Gallery</a>
-      <a href="#circuit">Circuit</a>
+      <a href="#builder">Builder</a>
       <a href="#runner">Workbench</a>
       <a href="#state">State</a>
       <a href="#verification">Verification</a>
@@ -35,52 +34,82 @@
     <section id="overview" class="card hero">
       <h2>Overview</h2>
       <p>
-        QProof verifies <strong>falsifiable claims</strong> about classical state-vector simulations.
-        The Bell-state experiment is a smoke test and onboarding fixture — not the capability boundary.
+        QProof runs a <strong>classical state-vector simulator in your browser</strong> and can load
+        precomputed Python evidence. Bell is a regression fixture, not the capability boundary.
         No quantum advantage or hardware execution is claimed.
       </p>
       <div class="status-row" id="status-summary">
         <span class="badge" id="badge-status">Loading…</span>
         <span id="badge-experiment"></span>
         <span id="badge-fidelity"></span>
-        <span class="badge" id="badge-mode">precomputed evidence</span>
+        <span class="badge" id="badge-mode">—</span>
       </div>
       <ul class="links">
         <li><a href="https://github.com/TheBabelDragon/QProof">Repository</a></li>
-        <li><a href="https://github.com/TheBabelDragon/QProof#install">Install &amp; CLI</a></li>
         <li><a href="capabilities.json" download>Capability registry JSON</a></li>
       </ul>
     </section>
 
     <section id="capabilities" class="card">
       <h2>Capability registry</h2>
-      <p class="muted">Loaded from <code>capabilities.json</code> (generated from the Python registry). Unsupported gates and hardware are listed explicitly.</p>
+      <p class="muted">From <code>capabilities.json</code>. Browser max qubits is conservative (≤12) to avoid freezes.</p>
       <div class="meta-grid" id="cap-summary"></div>
       <div id="gate-palette" class="gate-palette" aria-label="Supported gates"></div>
       <pre id="cap-raw" class="code-block" hidden></pre>
       <button type="button" id="btn-toggle-cap" class="btn">Show full registry JSON</button>
     </section>
 
-    <section id="gallery" class="card">
-      <h2>Experiment gallery</h2>
-      <p class="muted">Fixtures for onboarding and regression. Define new experiments via CLI JSON without changing the core runner.</p>
-      <div id="gallery-list" class="gallery-list"></div>
-    </section>
-
-    <section id="circuit" class="card">
-      <h2>Circuit explorer</h2>
-      <p class="muted" id="circuit-caption">Select a gallery item or load evidence.</p>
+    <section id="builder" class="card">
+      <h2>Circuit builder</h2>
+      <p class="muted">Add gates, validate, and run live in the browser. Import JSON using the shared circuit format.</p>
+      <div class="controls">
+        <label>Qubits
+          <input type="number" id="n-qubits" min="1" max="12" value="2" />
+        </label>
+        <label>Gate
+          <select id="gate-pick" aria-label="Gate to add">
+            <option>H</option><option>X</option><option>Y</option><option>Z</option>
+            <option>S</option><option>T</option><option>I</option>
+            <option>RX</option><option>RY</option><option>RZ</option>
+            <option>CNOT</option><option>CZ</option>
+          </select>
+        </label>
+        <label>Qubit(s)
+          <input type="text" id="gate-qubits" value="0" placeholder="0 or 0,1" />
+        </label>
+        <label>θ (rad)
+          <input type="text" id="gate-theta" value="" placeholder="for RX/RY/RZ" />
+        </label>
+        <button type="button" id="btn-add-gate" class="btn">Add gate</button>
+        <button type="button" id="btn-clear-gates" class="btn">Clear</button>
+        <button type="button" id="btn-load-bell" class="btn">Bell template</button>
+        <button type="button" id="btn-load-h" class="btn">H template</button>
+      </div>
+      <div id="builder-gates" class="code-block" style="min-height:3rem"></div>
+      <div class="controls">
+        <label>Shots
+          <input type="number" id="run-shots" min="0" max="100000" value="0" />
+        </label>
+        <label>Seed
+          <input type="number" id="run-seed" value="42" />
+        </label>
+        <button type="button" id="btn-validate" class="btn">Validate</button>
+        <button type="button" id="btn-run-live" class="btn primary">Run in browser</button>
+        <button type="button" id="btn-export-circ" class="btn">Export circuit JSON</button>
+        <label class="file-label">Import circuit JSON
+          <input type="file" id="file-circuit" accept="application/json,.json" />
+        </label>
+      </div>
+      <div id="builder-status" class="runner-status" role="status" aria-live="polite"></div>
       <div id="circuit-viz" class="circuit-viz" role="img" aria-label="Circuit diagram"></div>
       <div class="meta-grid" id="circuit-meta"></div>
-      <div id="gate-explain" class="gate-explain"></div>
     </section>
 
     <section id="runner" class="card">
-      <h2>Workbench</h2>
+      <h2>Workbench — precomputed &amp; verification</h2>
       <p class="muted">
-        This static site loads <strong>precomputed, independently verified</strong> evidence from the Python engine.
-        It does not run a browser quantum simulator and cannot invoke quantum hardware.
-        Authoritative execution: <code>qproof run &lt;name&gt;</code> or <code>qproof run-json experiment.json</code>.
+        Precomputed reports are from the <strong>Python</strong> engine. Live runs use the <strong>browser</strong> simulator.
+        UI-only failure demo does <em>not</em> exercise the real verifier.
       </p>
       <div class="controls">
         <label>
@@ -93,13 +122,16 @@
           </select>
         </label>
         <button type="button" id="btn-load" class="btn primary">Load verified report</button>
-        <button type="button" id="btn-fail" class="btn">Demonstrate failure path</button>
+        <button type="button" id="btn-fail" class="btn">UI-only failure demo</button>
+        <button type="button" id="btn-verify-integrity" class="btn">Verify evidence integrity</button>
+        <button type="button" id="btn-tamper-test" class="btn">Tamper + re-verify</button>
         <label class="file-label">
           Import evidence JSON
           <input type="file" id="file-import" accept="application/json,.json" />
         </label>
       </div>
       <div id="runner-status" class="runner-status" role="status" aria-live="polite"></div>
+      <div id="integrity-status" class="runner-status" role="status"></div>
     </section>
 
     <section id="state" class="card">
@@ -114,7 +146,6 @@
         </div>
         <div>
           <h3>Measurement distribution</h3>
-          <p class="muted">Exact probabilities vs finite-shot counts when present.</p>
           <div id="prob-bars" class="prob-bars"></div>
         </div>
       </div>
@@ -123,9 +154,10 @@
     <section id="verification" class="card">
       <h2>Verification results</h2>
       <p class="muted">
-        <strong>PASS</strong> — check met criteria.
-        <strong>FAIL</strong> — check contradicted.
-        <strong>INCONCLUSIVE</strong> — support or data unavailable. Missing checks never default to PASS.
+        <strong>PASS</strong> — criteria met.
+        <strong>FAIL</strong> — contradicted.
+        <strong>INCONCLUSIVE</strong> — reference or data unavailable.
+        Integrity (hashes) is separate from scientific claim checks.
       </p>
       <table class="data" id="check-table">
         <thead>
@@ -140,7 +172,7 @@
       <div id="evidence-meta" class="meta-grid"></div>
       <div class="controls">
         <button type="button" id="btn-download" class="btn">Download JSON</button>
-        <button type="button" id="btn-copy-cmd" class="btn">Copy reproduction command</button>
+        <button type="button" id="btn-copy-cmd" class="btn">Copy Python reproduction command</button>
       </div>
       <pre id="evidence-raw" class="code-block" tabindex="0"></pre>
       <p id="evidence-error" class="error" hidden></p>
@@ -149,19 +181,21 @@
     <section id="methodology" class="card">
       <h2>Methodology &amp; limitations</h2>
       <ul>
-        <li>Backend: classical complex128 state vector (little-endian qubit 0 = LSB).</li>
-        <li>References: analytic closed forms or caller-supplied expected states — not the production gate applicator.</li>
-        <li>Evidence hashes check integrity, not scientific truth.</li>
-        <li>No noise model, mid-circuit measurement, or quantum hardware.</li>
-        <li>QProof is defined by claims it can test and circuits it can support — not by demo count on this page.</li>
+        <li>Browser backend: classical complex amplitudes, little-endian (qubit 0 = LSB).</li>
+        <li>Python backend remains the independent comparison path for precomputed fixtures.</li>
+        <li>Evidence hashes prove integrity of the hashed body, not scientific truth.</li>
+        <li>Client-side integrity checks are convenience; authoritative verification is <code>qproof verify-evidence</code>.</li>
+        <li>UI-only failure demo only mutates displayed JSON — it is not a verifier test.</li>
+        <li>No noise model, mid-circuit measurement, GPU, or quantum hardware.</li>
       </ul>
-      <p class="muted">CLI: <code>pip install -e ".[dev]" && qproof capabilities && qproof run hadamard</code></p>
     </section>
   </main>
 
   <footer class="site-footer wrap">
     <p>QProof · MIT · <a href="https://github.com/TheBabelDragon/QProof">TheBabelDragon/QProof</a></p>
   </footer>
+  <script src="simulator.js"></script>
+  <script src="evidence_verify.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

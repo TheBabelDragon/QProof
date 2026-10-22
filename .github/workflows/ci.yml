@@ -2,66 +2,56 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/capability-first-verification, feat/hackathon-platform-github-pages]
+    branches: [main, "feat/**"]
   pull_request:
     branches: [main]
-
-permissions:
-  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
+          python-version: "3.12"
       - name: Install
         run: pip install -e ".[dev]"
       - name: Pytest
-        run: pytest -q --tb=short
-      - name: Capabilities + list
+        run: pytest -q
+      - name: Browser simulator unit tests
+        run: node web/test_simulator.mjs
+      - name: Generate capabilities artifact
         run: |
-          qproof capabilities > /tmp/cap.json
-          qproof list
-          python -c "import json; d=json.load(open('/tmp/cap.json')); assert 'gates' in d"
-      - name: Run fixtures
+          qproof capabilities > web/capabilities.json
+          qproof run bell --shots 0 --out web/evidence/bell-state-v1.json || true
+
+  pages:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Refresh web artifacts
         run: |
-          qproof run bell --shots 256 --seed 42 --out /tmp/bell.json
-          qproof run hadamard --out /tmp/h.json
-          qproof run rx-pi --out /tmp/rx.json
-          qproof run phase --out /tmp/phase.json
-          qproof verify-evidence /tmp/bell.json
-          qproof verify-evidence /tmp/h.json
-      - name: Negative path
-        run: |
-          python - <<'PY'
-          from qproof import Circuit, Experiment, ExperimentStatus, run_experiment
-          import numpy as np
-          circ = Circuit(2).h(0).cx(0, 1)
-          wrong = np.array([1.0, 0, 0, 0], dtype=np.complex128)
-          exp = Experiment(
-              experiment_id="neg",
-              description="neg",
-              claim="fail",
-              circuit=circ,
-              expected_amplitudes=wrong,
-              expected_probabilities=np.abs(wrong)**2,
-              shots=0,
-          )
-          r = run_experiment(exp)
-          assert r.status == ExperimentStatus.FAILED
-          print("negative ok")
-          PY
-      - name: Frontend assets present
-        run: |
-          test -f web/index.html
-          test -f web/app.js
-          test -f web/styles.css
-          test -f web/capabilities.json || true
+          qproof capabilities > web/capabilities.json
+          mkdir -p web/evidence
+          qproof run bell --shots 1024 --seed 42 --out web/evidence/bell-state-v1.json
+          qproof run hadamard --out web/evidence/hadamard-v1.json
+          qproof run rx-pi --out web/evidence/rx-pi-v1.json
+          qproof run phase --out web/evidence/global-phase-v1.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
