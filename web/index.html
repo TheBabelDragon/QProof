@@ -26,15 +26,10 @@
       <a href="https://github.com/TheBabelDragon/QProof" rel="noopener">Source</a>
     </nav>
   </header>
-
   <main id="main" class="wrap">
     <section class="card hero">
       <h2>Workbench</h2>
-      <p>
-        Start from a <strong>blank circuit</strong>, execute it in the browser, optionally compare to a reference,
-        and inspect evidence integrity. Fixtures are optional templates — not the product.
-        Classical simulation only; no quantum hardware or advantage claims.
-      </p>
+      <p>Start from a <strong>blank circuit</strong>, execute it in the browser, optionally compare to a reference, and inspect evidence integrity. Classical simulation only.</p>
       <div class="status-row" id="status-summary">
         <span class="badge" id="badge-status">idle</span>
         <span class="badge" id="badge-mode">no run yet</span>
@@ -42,18 +37,13 @@
         <span id="badge-fidelity"></span>
       </div>
     </section>
-
-    <!-- A. Experiment Lab -->
     <section id="lab" class="card">
       <h2>Experiment Lab</h2>
-      <p class="muted">Configure qubits and gates, validate, run live. Results below update only after a real execution.</p>
-
+      <p class="muted">Configure qubits and gates, validate, run live. Results update only after a real execution.</p>
       <div class="controls">
-        <label>Qubits
-          <input type="number" id="n-qubits" min="1" max="12" value="1" aria-label="Number of qubits" />
-        </label>
+        <label>Qubits <input type="number" id="n-qubits" min="1" max="12" value="1" /></label>
         <label>Template (optional)
-          <select id="template-select" aria-label="Optional circuit template">
+          <select id="template-select">
             <option value="">— blank —</option>
             <option value="hadamard">Hadamard</option>
             <option value="bell">Bell (H+CNOT)</option>
@@ -64,100 +54,60 @@
         <button type="button" id="btn-apply-template" class="btn">Load template</button>
         <button type="button" id="btn-blank" class="btn">Reset blank</button>
       </div>
-
       <div class="controls">
-        <label>Gate
-          <select id="gate-pick" aria-label="Gate to add"></select>
-        </label>
-        <label>Qubit(s)
-          <input type="text" id="gate-qubits" value="0" placeholder="0 or 0,1" aria-label="Target qubit indices" />
-        </label>
-        <label>θ (rad)
-          <input type="text" id="gate-theta" value="" placeholder="RX/RY/RZ" aria-label="Rotation angle radians" />
-        </label>
+        <label>Gate <select id="gate-pick"></select></label>
+        <label>Qubit(s) <input type="text" id="gate-qubits" value="0" /></label>
+        <label>θ (rad) <input type="text" id="gate-theta" value="" /></label>
         <button type="button" id="btn-add-gate" class="btn">Add gate</button>
         <button type="button" id="btn-remove-last" class="btn">Remove last</button>
         <button type="button" id="btn-move-up" class="btn">Move last ↑</button>
       </div>
-
-      <div id="gate-list" class="gate-list" aria-label="Gate sequence"></div>
+      <div id="gate-list" class="gate-list"></div>
       <div id="circuit-viz" class="circuit-viz" role="img" aria-label="Circuit diagram"></div>
       <div class="meta-grid" id="circuit-meta"></div>
-
       <div class="controls">
-        <label>Shots
-          <input type="number" id="run-shots" min="0" max="100000" value="0" />
-        </label>
-        <label>Seed
-          <input type="number" id="run-seed" value="42" />
-        </label>
-        <label>Initial |index⟩
-          <input type="number" id="run-init" min="0" value="0" />
-        </label>
+        <label>Shots <input type="number" id="run-shots" min="0" max="100000" value="0" /></label>
+        <label>Seed <input type="number" id="run-seed" value="42" /></label>
+        <label>Initial |index⟩ <input type="number" id="run-init" min="0" value="0" /></label>
         <button type="button" id="btn-validate" class="btn">Validate</button>
         <button type="button" id="btn-run-live" class="btn primary">Run in browser</button>
         <button type="button" id="btn-export-circ" class="btn">Export circuit</button>
-        <label class="file-label">Import circuit
-          <input type="file" id="file-circuit" accept="application/json,.json" />
-        </label>
+        <label class="file-label">Import circuit <input type="file" id="file-circuit" accept="application/json,.json" /></label>
       </div>
       <div id="builder-status" class="runner-status" role="status" aria-live="polite"></div>
-
       <h3>Live results</h3>
       <div class="split">
-        <div>
-          <table class="data" id="amp-table">
-            <thead><tr><th>Basis</th><th>Re</th><th>Im</th><th>|amp|²</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div>
-          <div id="prob-bars" class="prob-bars"></div>
-        </div>
+        <div><table class="data" id="amp-table"><thead><tr><th>Basis</th><th>Re</th><th>Im</th><th>|amp|²</th></tr></thead><tbody></tbody></table></div>
+        <div><div id="prob-bars" class="prob-bars"></div></div>
       </div>
     </section>
-
-    <!-- B. Claim Verification -->
     <section id="claims" class="card">
       <h2>Claim Verification</h2>
-      <p class="muted">
-        Scientific checks are separate from integrity hashes. Without a reference, amplitude/fidelity checks are
-        <strong>inconclusive</strong> — never silently passed.
-      </p>
+      <p class="muted">Without a reference, amplitude/fidelity checks are <strong>inconclusive</strong>. Use the matching analytic reference for Hadamard or Bell.</p>
       <div class="controls">
         <label>Reference source
-          <select id="ref-mode" aria-label="Reference mode">
+          <select id="ref-mode">
             <option value="none">None (invariants only)</option>
             <option value="analytic-bell">Analytic Bell</option>
             <option value="analytic-h">Analytic Hadamard</option>
             <option value="paste">Paste expected amplitudes JSON</option>
           </select>
         </label>
-        <label>Tolerance
-          <input type="text" id="ref-tol" value="1e-10" />
-        </label>
+        <label>Tolerance <input type="text" id="ref-tol" value="1e-10" /></label>
         <button type="button" id="btn-verify-claim" class="btn primary">Verify against last run</button>
       </div>
-      <label class="block-label">Expected amplitudes <code>[[re,im], …]</code> (paste mode)
-        <textarea id="ref-amps" rows="3" class="code-block" placeholder='[[0.7071,0],[0.7071,0]]'></textarea>
+      <label class="block-label">Expected amplitudes <code>[[re,im], …]</code>
+        <textarea id="ref-amps" rows="3" class="code-block"></textarea>
       </label>
-      <table class="data" id="check-table">
-        <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Tol</th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <table class="data" id="check-table"><thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Tol</th></tr></thead><tbody></tbody></table>
       <div id="claim-status" class="runner-status" role="status"></div>
     </section>
-
-    <!-- C. Evidence Inspector -->
     <section id="evidence-ws" class="card">
       <h2>Evidence Inspector</h2>
-      <p class="muted">
-        Import or use the last live report. Integrity ≠ scientific truth. Client checks are convenience;
-        authoritative path: <code>qproof verify-evidence</code>.
-      </p>
+      <p class="muted">Integrity ≠ scientific truth. Labels: Integrity verified / failed / unverified · Scientific checks passed / failed / inconclusive.</p>
       <div class="controls">
         <label>Fixture (optional)
-          <select id="exp-select" aria-label="Optional precomputed fixture">
+          <select id="exp-select">
             <option value="">— none —</option>
             <option value="evidence/bell-state-v1.json">bell-state-v1</option>
             <option value="evidence/hadamard-v1.json">hadamard-v1</option>
@@ -170,47 +120,35 @@
         <button type="button" id="btn-verify-integrity" class="btn primary">Verify integrity</button>
         <button type="button" id="btn-tamper-test" class="btn">Tamper + re-verify</button>
         <button type="button" id="btn-ui-demo" class="btn">UI-only display demo</button>
-        <label class="file-label">Import evidence
-          <input type="file" id="file-import" accept="application/json,.json" />
-        </label>
+        <label class="file-label">Import evidence <input type="file" id="file-import" accept="application/json,.json" /></label>
         <button type="button" id="btn-download" class="btn">Download JSON</button>
       </div>
-      <div id="runner-status" class="runner-status" role="status" aria-live="polite"></div>
+      <div id="runner-status" class="runner-status" role="status"></div>
       <div id="integrity-status" class="runner-status" role="status"></div>
       <div id="evidence-meta" class="meta-grid"></div>
-      <details>
-        <summary>Raw evidence JSON</summary>
-        <pre id="evidence-raw" class="code-block" tabindex="0"></pre>
-      </details>
+      <details><summary>Raw evidence JSON</summary><pre id="evidence-raw" class="code-block"></pre></details>
       <p id="evidence-error" class="error" hidden></p>
     </section>
-
     <section id="capabilities" class="card">
       <h2>Capability registry</h2>
       <div class="meta-grid" id="cap-summary"></div>
-      <div id="gate-palette" class="gate-palette" aria-label="Supported gates from registry"></div>
-      <details>
-        <summary>Full registry JSON</summary>
-        <pre id="cap-raw" class="code-block"></pre>
-      </details>
+      <div id="gate-palette" class="gate-palette"></div>
+      <details><summary>Full registry JSON</summary><pre id="cap-raw" class="code-block"></pre></details>
     </section>
-
     <section id="methodology" class="card">
       <h2>Limits &amp; non-claims</h2>
       <ul>
-        <li>Browser backend: classical complex amplitudes, little-endian (qubit 0 = LSB), max 12 qubits.</li>
-        <li>Python/NumPy is the independent reference path for fixtures and CLI verification.</li>
-        <li>Evidence hashes prove body integrity, not scientific truth or trusted authorship.</li>
-        <li>UI-only display demo mutates the view only — it is not a verifier result.</li>
+        <li>Browser backend: classical amplitudes, little-endian, max 12 qubits.</li>
+        <li>Evidence hashes prove body integrity, not scientific truth.</li>
+        <li>UI-only display demo is not a verifier result.</li>
         <li>No noise, hardware, GPU, or quantum advantage.</li>
       </ul>
     </section>
   </main>
-
-  <footer class="site-footer wrap">
-    <p>QProof · MIT · <a href="https://github.com/TheBabelDragon/QProof">TheBabelDragon/QProof</a></p>
-  </footer>
+  <footer class="site-footer wrap"><p>QProof · MIT · <a href="https://github.com/TheBabelDragon/QProof">TheBabelDragon/QProof</a></p></footer>
+  <script src="canonical_hash.js"></script>
   <script src="simulator.js"></script>
+  <script src="hash_attach.js"></script>
   <script src="circuit_depth.js"></script>
   <script src="evidence_verify.js"></script>
   <script src="app.js"></script>

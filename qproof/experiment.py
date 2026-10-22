@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import platform
 import time
@@ -13,6 +12,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from . import __software_id__, __version__
+from .canonical import circuit_hash, report_hash as compute_report_hash, canonical_hash
 from .circuit import Circuit
 from .fidelity import pure_state_fidelity
 from .measurement import measure
@@ -26,7 +26,7 @@ from .reference import (
 )
 from .statevector import StateVector
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 
 class ExperimentStatus(str, Enum):
@@ -61,13 +61,6 @@ class CheckResult:
 
 @dataclass
 class Experiment:
-    """Definition of a falsifiable experiment.
-
-    expected_* come from an independent reference or a documented supplied
-    expected state — not from re-running the production gate path for the
-    claim under test.
-    """
-
     experiment_id: str
     description: str
     claim: str
@@ -113,6 +106,7 @@ class ExperimentReport:
     execution_mode: str
     input_hash: Optional[str] = None
     report_hash: Optional[str] = None
+    circuit_hash_value: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -151,7 +145,9 @@ class ExperimentReport:
             "limitations": self.limitations,
             "integrity": {
                 "input_hash": self.input_hash,
+                "circuit_hash": self.circuit_hash_value,
                 "report_hash": self.report_hash,
+                "canonicalization": "qproof-canonical-v1",
             },
         }
 
@@ -163,13 +159,7 @@ def _amp_list(amps: np.ndarray) -> List[List[float]]:
     return [[float(a.real), float(a.imag)] for a in amps]
 
 
-def _canonical_hash(obj: dict) -> str:
-    raw = json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return "sha256:" + hashlib.sha256(raw).hexdigest()
-
-
 def run_experiment(exp: Experiment) -> ExperimentReport:
-    """Execute *exp*, verify against independent/supplied reference, return report."""
     checks: List[CheckResult] = []
     t0 = time.perf_counter()
 
@@ -293,7 +283,7 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
             CheckResult(
                 "shot_consistency",
                 ExperimentStatus.PASSED,
-                "no shots requested — exact probabilities only",
+                "no shots requested - exact probabilities only",
             )
         )
 
@@ -372,10 +362,13 @@ def _build_report(
         "seed": exp.seed,
         "tolerances": report.tolerances,
     }
-    report.input_hash = _canonical_hash(input_obj)
+    report.input_hash = canonical_hash(input_obj)
+    report.circuit_hash_value = circuit_hash(
+        {"n_qubits": report.n_qubits, "spec": report.circuit_spec}
+    )
+    # report_hash computed after other integrity fields are set (report_hash null in body)
     body = report.to_dict()
-    body["integrity"]["report_hash"] = None
-    report.report_hash = _canonical_hash(body)
+    report.report_hash = compute_report_hash(body)
     return report
 
 
@@ -387,7 +380,6 @@ def bell_state_experiment(
     probability_tol: float = 1e-10,
     fidelity_tol: float = 1e-10,
 ) -> Experiment:
-    """Smoke / onboarding fixture: Bell-state preparation and verification."""
     circ = Circuit(2).h(0).cx(0, 1)
     return Experiment(
         experiment_id="bell-state-v1",
@@ -398,9 +390,7 @@ def bell_state_experiment(
         claim=(
             "The classical state-vector simulation of H(0); CNOT(0,1) on |00⟩ "
             "produces amplitudes and probabilities matching the analytic Bell "
-            "state (|00⟩ + |11⟩)/√2 under little-endian qubit ordering. "
-            "This demonstrates correctness of the modelled circuit, not quantum "
-            "computational advantage."
+            "state (|00⟩ + |11⟩)/√2 under little-endian qubit ordering."
         ),
         circuit=circ,
         expected_amplitudes=bell_expected_amplitudes(),
@@ -412,34 +402,25 @@ def bell_state_experiment(
         fidelity_tol=fidelity_tol,
         reference_id="analytic/bell-v1",
         limitations=[
-            "Classical state-vector simulation only — no quantum hardware.",
-            "No noise model; ideal gates assumed.",
+            "Classical state-vector simulation only - no quantum hardware.",
             "Does not demonstrate quantum advantage.",
-            "Shot statistics are a consistency check, not a formal hypothesis test.",
-            "Fixture for smoke/onboarding — not the capability boundary.",
+            "Fixture for smoke/onboarding - not the capability boundary.",
         ],
     )
 
 
 def global_phase_experiment() -> Experiment:
-    """Phase fixture: X; Z on |0⟩ → −|1⟩."""
     circ = Circuit(1).x(0).z(0)
     expected = np.array([0.0, -1.0], dtype=np.complex128)
     return Experiment(
         experiment_id="global-phase-v1",
-        description="Apply X then Z to |0⟩; result is −|1⟩ (global phase on |1⟩).",
-        claim=(
-            "X; Z on |0⟩ yields amplitudes [0, −1], demonstrating correct "
-            "Z-gate phase. Fidelity to |1⟩ is 1 (phase-invariant)."
-        ),
+        description="Apply X then Z to |0⟩; result is −|1⟩.",
+        claim="X; Z on |0⟩ yields amplitudes [0, −1].",
         circuit=circ,
         expected_amplitudes=expected,
         expected_probabilities=np.array([0.0, 1.0]),
         shots=0,
         seed=None,
         reference_id="analytic/phase-v1",
-        limitations=[
-            "Classical simulation only.",
-            "Global phase is unobservable in measurement probabilities.",
-        ],
+        limitations=["Classical simulation only."],
     )

@@ -25,7 +25,7 @@
   let capabilities = null;
   /** @type {{n_qubits:number, gates:Array}} */
   let builder = { n_qubits: 1, gates: [] };
-  let lastRun = null; // simulator result + report
+  let lastRun = null;
   let currentReport = null;
   let provenance = "none";
 
@@ -45,7 +45,7 @@
     const host = $("#gate-list");
     host.innerHTML = "";
     if (!builder.gates.length) {
-      host.innerHTML = '<p class="muted">Empty circuit — add gates or load a template.</p>';
+      host.innerHTML = '<p class="muted">Empty circuit - add gates or load a template.</p>';
       return;
     }
     builder.gates.forEach((g, i) => {
@@ -56,7 +56,7 @@
         " [" +
         g.qubits.join(",") +
         "]" +
-        (g.theta != null ? " θ=" + g.theta : "");
+        (g.theta != null ? " theta=" + g.theta : "");
       row.innerHTML =
         '<span class="mono">' +
         (i + 1) +
@@ -64,7 +64,7 @@
         label +
         '</span> <button type="button" data-i="' +
         i +
-        '" class="btn btn-tiny btn-del">×</button>';
+        '" class="btn btn-tiny btn-del">x</button>';
       host.appendChild(row);
     });
     host.querySelectorAll(".btn-del").forEach((btn) => {
@@ -94,7 +94,7 @@
           const b = document.createElement("button");
           b.type = "button";
           b.className = "gate-box";
-          b.textContent = gate + (g.theta != null ? "(θ)" : "");
+          b.textContent = gate + (g.theta != null ? "(th)" : "");
           line.appendChild(b);
         } else if (isCx && g.qubits[0] === q) {
           const d = document.createElement("span");
@@ -104,7 +104,7 @@
           const b = document.createElement("button");
           b.type = "button";
           b.className = "gate-box cnot";
-          b.textContent = "⊕";
+          b.textContent = "+";
           line.appendChild(b);
         } else if (gate === "CZ" && g.qubits.includes(q)) {
           const b = document.createElement("button");
@@ -204,7 +204,7 @@
     const probs = report.results.observed_probabilities || [];
     obs.forEach((a, i) => {
       const tr = document.createElement("tr");
-      const bit = "|" + i.toString(2).padStart(n, "0") + "⟩";
+      const bit = "|" + i.toString(2).padStart(n, "0") + ">";
       tr.innerHTML = `<td>${bit}</td><td>${Number(a[0]).toFixed(6)}</td><td>${Number(a[1]).toFixed(6)}</td><td>${Number(probs[i] || 0).toFixed(6)}</td>`;
       tbody.appendChild(tr);
     });
@@ -217,7 +217,7 @@
       const row = document.createElement("div");
       row.className = "prob-row";
       row.innerHTML = `
-        <span class="bar-label">|${bit}⟩</span>
+        <span class="bar-label">|${bit}></span>
         <div class="bar-track"><div class="bar-fill" style="width:${p * 100}%"></div></div>
         <span class="bar-label">p=${Number(p).toFixed(3)}${shots ? " n=" + (counts[bit] || 0) : ""}</span>`;
       host.appendChild(row);
@@ -235,7 +235,7 @@
           : c.status === "failed"
             ? "status-fail"
             : "status-inconclusive";
-      tr.innerHTML = `<td>${c.name}</td><td class="${cls}">${String(c.status).toUpperCase()}</td><td>${c.detail}</td><td>${c.tolerance != null ? c.tolerance : "—"}</td>`;
+      tr.innerHTML = `<td>${c.name}</td><td class="${cls}">${String(c.status).toUpperCase()}</td><td>${c.detail}</td><td>${c.tolerance != null ? c.tolerance : "-"}</td>`;
       tbody.appendChild(tr);
     });
   }
@@ -244,7 +244,7 @@
     currentReport = report;
     provenance = prov || "unknown";
     const badge = $("#badge-status");
-    badge.textContent = String(report.status || "—").toUpperCase();
+    badge.textContent = String(report.status || "-").toUpperCase();
     badge.className =
       "badge " +
       (report.status === "passed"
@@ -261,15 +261,16 @@
         : "";
     if (report.circuit) showAmplitudes(report);
     showChecks(report);
+    const hashStr = ((report.integrity || {}).report_hash || "absent").toString();
     $("#evidence-meta").innerHTML = [
       ["Schema", report.schema_version],
       ["Experiment", report.experiment_id],
-      ["Status", report.status],
+      ["Scientific status", report.status],
       ["Simulator", (report.verification || {}).simulator_id],
       ["Reference", (report.verification || {}).reference_id],
       ["Mode", (report.execution || {}).mode],
       ["Provenance", provenance],
-      ["Hash", ((report.integrity || {}).report_hash || "— absent —").toString().slice(0, 28)],
+      ["report_hash", hashStr.length > 28 ? hashStr.slice(0, 28) + "..." : hashStr],
     ]
       .map(
         ([k, v]) =>
@@ -302,17 +303,15 @@
         seed: Number.isFinite(seed) ? seed : 42,
         initialIndex: init > 0 ? init : undefined,
       });
-      // Attach parallel depth
       result.depth = depthOf(spec.gates);
       const report = QProofSimulator.buildBrowserReport(spec, result, {
         experiment_id: "lab-" + Date.now(),
         reference_id: "none",
       });
-      report.circuit.depth = result.depth;
       lastRun = { spec, result, report };
       applyReport(
         report,
-        "Live browser execution — claim checks inconclusive until you supply a reference.",
+        "Live browser execution - claim checks inconclusive until you supply a reference.",
         "browser_live"
       );
       setStatus(
@@ -386,12 +385,11 @@
       reference_id: refId,
       tolerance: tol,
     });
-    report.circuit.depth = depthOf(lastRun.spec.gates);
     lastRun.report = report;
     applyReport(report, "Claim verification against " + refId, "browser_live+claim");
     setStatus(
       $("#claim-status"),
-      "Overall: " + report.status.toUpperCase() + " (scientific checks; not hash integrity)",
+      "Scientific checks: " + report.status.toUpperCase() + " (independent of hash integrity)",
       report.status === "passed" ? "ok" : report.status === "failed" ? "error" : ""
     );
   }
@@ -402,18 +400,26 @@
       return;
     }
     const r = await QProofEvidence.verifyReportIntegrity(report);
-    const hashNote =
-      r.ok && r.detail.indexOf("no report_hash") >= 0
-        ? " (structure only — NOT hash-verified)"
-        : "";
+    const integ = r.integrity || (r.hash_verified ? "verified" : "unverified");
+    let label;
+    let cls;
+    if (integ === "verified") {
+      label = "Integrity verified";
+      cls = "ok";
+    } else if (integ === "failed") {
+      label = "Integrity failed";
+      cls = "error";
+    } else {
+      label = "Integrity unverified";
+      cls = "";
+    }
     setStatus(
       $("#integrity-status"),
-      (r.ok ? "Integrity path: " : "Integrity FAIL: ") + r.detail + hashNote + " [client]",
-      r.ok && hashNote === "" ? "ok" : r.ok ? "" : "error"
+      label + ": " + r.detail + " [client]",
+      cls
     );
   }
 
-  // events
   $("#btn-add-gate").addEventListener("click", () => {
     const name = $("#gate-pick").value.toUpperCase();
     const qs = $("#gate-qubits")
@@ -424,7 +430,7 @@
     if (name === "RX" || name === "RY" || name === "RZ") {
       const th = parseFloat($("#gate-theta").value);
       if (!Number.isFinite(th)) {
-        setStatus($("#builder-status"), "Rotation needs finite θ", "error");
+        setStatus($("#builder-status"), "Rotation needs finite theta", "error");
         return;
       }
       entry.theta = th;
@@ -503,14 +509,18 @@
     try {
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
-      applyReport(await res.json(), "Precomputed Python fixture (optional)", "precomputed_python");
+      applyReport(
+        await res.json(),
+        "Precomputed Python fixture (integrity unverified by design if report_hash absent)",
+        "precomputed_python"
+      );
     } catch (e) {
       setStatus($("#runner-status"), String(e.message || e), "error");
     }
   });
   $("#btn-use-live").addEventListener("click", () => {
     if (!lastRun) {
-      setStatus($("#runner-status"), "No live run yet.", "error");
+      setStatus($("#runner-status"), "No live run yet - run a circuit in the Lab first.", "error");
       return;
     }
     applyReport(lastRun.report, "Last live browser report", "browser_live");
@@ -533,8 +543,10 @@
     const r = await QProofEvidence.verifyReportIntegrity(clone);
     setStatus(
       $("#integrity-status"),
-      r.ok ? "Unexpected: tamper not detected" : "Tamper detected (expected): " + r.detail,
-      r.ok ? "error" : "ok"
+      r.hash_verified
+        ? "Unexpected: tamper not detected"
+        : "Tamper detected (expected): " + r.detail,
+      r.hash_verified ? "error" : "ok"
     );
   });
   $("#btn-ui-demo").addEventListener("click", () => {
@@ -548,7 +560,7 @@
     (clone.checks || []).forEach((c) => {
       if (c.name === "fidelity" || c.name === "amplitudes") {
         c.status = "failed";
-        c.detail = "UI-ONLY DEMO — display mutated; not a verifier result";
+        c.detail = "UI-ONLY DEMO - display mutated; not a verifier result";
       }
     });
     applyReport(
@@ -573,7 +585,7 @@
     const r = new FileReader();
     r.onload = () => {
       try {
-        applyReport(JSON.parse(r.result), "Imported evidence", "import");
+        applyReport(JSON.parse(r.result), "Imported evidence file", "imported");
       } catch (e) {
         setStatus($("#runner-status"), "Import failed: " + e.message, "error");
       }

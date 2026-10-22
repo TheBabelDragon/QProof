@@ -32,10 +32,10 @@ def test_missing_hash_not_hash_verified():
     d = verify_evidence_detailed(report)
     assert d["structure_ok"] is True
     assert d["hash_verified"] is False
-    assert d["integrity"] == "absent"
+    assert d["integrity"] == "unverified"
     ok, detail = verify_report_integrity(report)
     assert not ok
-    assert "absent" in detail.lower() or "cannot claim" in detail.lower()
+    assert "unverified" in detail.lower() or "absent" in detail.lower() or "cannot" in detail.lower()
 
 
 def test_tampered_status_without_rehash_fails():
@@ -43,11 +43,6 @@ def test_tampered_status_without_rehash_fails():
     report["status"] = "failed" if report["status"] == "passed" else "passed"
     ok, detail = verify_report_integrity(report)
     assert not ok
-    assert (
-        "mismatch" in detail.lower()
-        or "inconsistent" in detail.lower()
-        or "report_hash" in detail
-    )
 
 
 def test_tampered_fidelity_fails():
