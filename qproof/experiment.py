@@ -283,7 +283,7 @@ def run_experiment(exp: Experiment) -> ExperimentReport:
             CheckResult(
                 "shot_consistency",
                 ExperimentStatus.PASSED,
-                "no shots requested — exact probabilities only",
+                "no shots requested - exact probabilities only",
             )
         )
 
@@ -402,9 +402,9 @@ def bell_state_experiment(
         fidelity_tol=fidelity_tol,
         reference_id="analytic/bell-v1",
         limitations=[
-            "Classical state-vector simulation only — no quantum hardware.",
+            "Classical state-vector simulation only - no quantum hardware.",
             "Does not demonstrate quantum advantage.",
-            "Fixture for smoke/onboarding — not the capability boundary.",
+            "Fixture for smoke/onboarding - not the capability boundary.",
         ],
     )
 
