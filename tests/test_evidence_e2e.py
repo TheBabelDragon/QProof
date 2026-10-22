@@ -72,3 +72,27 @@ def test_export_reimport_preserves_integrity(tmp_path: Path):
     loaded = json.loads(path.read_text())
     ok, detail = verify_report_integrity(loaded)
     assert ok, detail
+
+
+def test_status_inconsistent_with_checks_rejected():
+    report = run_experiment(get_experiment("hadamard")).to_dict()
+    report["status"] = "passed"
+    report["checks"][0]["status"] = "failed"
+    report["integrity"]["report_hash"] = report_hash(report)
+    d = verify_evidence_detailed(report)
+    # Hash may still match body, but overall ok must be false due to inconsistency
+    assert d["status_consistency_error"] is not None
+    assert d["ok"] is False
+
+
+def test_legacy_fixture_without_hash_is_unverified():
+    """Fixtures shipped without report_hash stay integrity-unverified forever."""
+    path = Path(__file__).resolve().parents[1] / "web" / "evidence" / "hadamard-v1.json"
+    report = json.loads(path.read_text())
+    d = verify_evidence_detailed(report)
+    assert d["structure"] == "valid"
+    assert d["integrity"] == "unverified"
+    assert d["hash_verified"] is False
+    assert d["scientific_checks"] == "passed"  # fixture declares scientific pass
+    ok, _ = verify_report_integrity(report)
+    assert not ok
