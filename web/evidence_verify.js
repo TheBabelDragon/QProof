@@ -1,6 +1,7 @@
 /**
  * Client evidence checks using QProofCanonical (matches Python).
  * Missing report_hash => integrity unverified (never PASS).
+ * Outcomes are independent: structure / integrity / scientific_checks.
  */
 (function (global) {
   "use strict";
@@ -40,33 +41,78 @@
 
   function verifyReportIntegrity(report) {
     var errors = validateStructure(report);
+    var sci = report && report.status != null ? report.status : null;
     if (errors.length) {
-      return Promise.resolve({ ok: false, hash_verified: false, integrity: "failed", structure: "invalid", detail: errors.join("; "), client_side: true });
+      return Promise.resolve({
+        ok: false,
+        hash_verified: false,
+        integrity: "failed",
+        structure: "invalid",
+        scientific_checks: sci,
+        detail: errors.join("; "),
+        client_side: true,
+      });
     }
     var integrity = report.integrity || {};
     var declared = integrity.report_hash;
     var C = global.QProofCanonical;
     if (!declared) {
-      return Promise.resolve({ ok: false, hash_verified: false, integrity: "unverified", structure: "valid",
-        detail: "structure valid; report_hash absent - integrity unverified (legacy or incomplete)", client_side: true });
+      return Promise.resolve({
+        ok: false,
+        hash_verified: false,
+        integrity: "unverified",
+        structure: "valid",
+        scientific_checks: sci,
+        detail: "structure valid; report_hash absent - integrity unverified (legacy or incomplete report)",
+        client_side: true,
+      });
     }
     if (!C) {
-      return Promise.resolve({ ok: false, hash_verified: false, integrity: "unverified", structure: "valid",
-        detail: "QProofCanonical not loaded - cannot recompute hash", client_side: true });
+      return Promise.resolve({
+        ok: false,
+        hash_verified: false,
+        integrity: "unverified",
+        structure: "valid",
+        scientific_checks: sci,
+        detail: "QProofCanonical not loaded - cannot recompute hash",
+        client_side: true,
+      });
     }
     if (integrity.circuit_hash) {
       var ch = C.circuitHash(report.circuit);
       if (ch !== integrity.circuit_hash) {
-        return Promise.resolve({ ok: false, hash_verified: false, integrity: "failed", structure: "valid", detail: "circuit_hash mismatch", client_side: true });
+        return Promise.resolve({
+          ok: false,
+          hash_verified: false,
+          integrity: "failed",
+          structure: "valid",
+          scientific_checks: sci,
+          detail: "circuit_hash mismatch",
+          client_side: true,
+        });
       }
     }
     var recomputed = C.reportHash(report);
     if (recomputed !== declared) {
-      return Promise.resolve({ ok: false, hash_verified: false, integrity: "failed", structure: "valid",
-        detail: "report_hash mismatch: declared " + declared + ", recomputed " + recomputed, client_side: true });
+      return Promise.resolve({
+        ok: false,
+        hash_verified: false,
+        integrity: "failed",
+        structure: "valid",
+        scientific_checks: sci,
+        detail: "report_hash mismatch: declared " + declared + ", recomputed " + recomputed,
+        client_side: true,
+      });
     }
-    return Promise.resolve({ ok: true, hash_verified: true, integrity: "verified", structure: "valid",
-      detail: "structure valid; report_hash matches", client_side: true });
+    return Promise.resolve({
+      ok: true,
+      hash_verified: true,
+      integrity: "verified",
+      structure: "valid",
+      scientific_checks: sci,
+      detail: "structure valid; report_hash matches" + (integrity.circuit_hash ? "; circuit_hash matches" : ""),
+      client_side: true,
+    });
   }
 
   var api = { validateStructure: validateStructure, verifyReportIntegrity: verifyReportIntegrity };
