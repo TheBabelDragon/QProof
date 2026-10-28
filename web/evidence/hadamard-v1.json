@@ -1,18 +1,59 @@
 {
   "checks": [
-    {"detail": "dim=2", "name": "dimension", "status": "passed"},
-    {"detail": "all amplitudes finite", "name": "finite", "status": "passed"},
-    {"detail": "normalized (norm=1.000000e+00)", "name": "normalization", "status": "passed", "tolerance": 1e-10},
-    {"detail": "amplitudes match within tolerance (global-phase invariant)", "name": "amplitudes", "status": "passed", "tolerance": 1e-10},
-    {"detail": "probabilities match within tolerance", "name": "probabilities", "status": "passed", "tolerance": 1e-10},
-    {"detail": "F=1.000000000000", "expected": 1.0, "name": "fidelity", "observed": 0.9999999999999996, "status": "passed", "tolerance": 1e-10},
-    {"detail": "no shots requested - exact probabilities only", "name": "shot_consistency", "status": "passed"}
+    {
+      "detail": "dim=2",
+      "name": "dimension",
+      "status": "passed"
+    },
+    {
+      "detail": "all amplitudes finite",
+      "name": "finite",
+      "status": "passed"
+    },
+    {
+      "detail": "normalized (norm=1.000000e+00)",
+      "name": "normalization",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "amplitudes match within tolerance (global-phase invariant)",
+      "name": "amplitudes",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "probabilities match within tolerance",
+      "name": "probabilities",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "F=1.000000000000",
+      "expected": 1.0,
+      "name": "fidelity",
+      "observed": 0.9999999999999996,
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "no shots requested - exact probabilities only",
+      "name": "shot_consistency",
+      "status": "passed"
+    }
   ],
   "circuit": {
     "depth": 1,
     "gate_count": 1,
     "n_qubits": 1,
-    "spec": [{"gate": "H", "qubits": [0]}]
+    "spec": [
+      {
+        "gate": "H",
+        "qubits": [
+          0
+        ]
+      }
+    ]
   },
   "claim": "Classical simulation of H on |0\u27e9 matches the analytic superposition (|0\u27e9+|1\u27e9)/\u221a2 under little-endian ordering.",
   "description": "Apply H to |0\u27e9; expect (|0\u27e9+|1\u27e9)/\u221a2.",
@@ -40,18 +81,46 @@
     "Single-qubit analytic fixture \u2014 not a capability boundary."
   ],
   "results": {
-    "expected_amplitudes": [[0.7071067811865475, 0.0], [0.7071067811865475, 0.0]],
-    "expected_probabilities": [0.4999999999999999, 0.4999999999999999],
+    "expected_amplitudes": [
+      [
+        0.7071067811865475,
+        0.0
+      ],
+      [
+        0.7071067811865475,
+        0.0
+      ]
+    ],
+    "expected_probabilities": [
+      0.4999999999999999,
+      0.4999999999999999
+    ],
     "fidelity": 0.9999999999999996,
     "measurement_counts": {},
-    "observed_amplitudes": [[0.7071067811865475, 0.0], [0.7071067811865475, 0.0]],
-    "observed_probabilities": [0.4999999999999999, 0.4999999999999999]
+    "observed_amplitudes": [
+      [
+        0.7071067811865475,
+        0.0
+      ],
+      [
+        0.7071067811865475,
+        0.0
+      ]
+    ],
+    "observed_probabilities": [
+      0.4999999999999999,
+      0.4999999999999999
+    ]
   },
   "schema_version": "1.1.0",
   "status": "passed",
   "verification": {
     "reference_id": "analytic/hadamard-v1",
     "simulator_id": "qproof/0.2.0",
-    "tolerances": {"amplitude": 1e-10, "fidelity": 1e-10, "probability": 1e-10}
+    "tolerances": {
+      "amplitude": 1e-10,
+      "fidelity": 1e-10,
+      "probability": 1e-10
+    }
   }
 }

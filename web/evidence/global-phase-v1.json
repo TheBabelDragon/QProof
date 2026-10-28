@@ -1,18 +1,65 @@
 {
   "checks": [
-    {"detail": "dim=2", "name": "dimension", "status": "passed"},
-    {"detail": "all amplitudes finite", "name": "finite", "status": "passed"},
-    {"detail": "normalized (norm=1.000000e+00)", "name": "normalization", "status": "passed", "tolerance": 1e-10},
-    {"detail": "amplitudes match within tolerance (global-phase invariant)", "name": "amplitudes", "status": "passed", "tolerance": 1e-10},
-    {"detail": "probabilities match within tolerance", "name": "probabilities", "status": "passed", "tolerance": 1e-10},
-    {"detail": "F=1.000000000000", "expected": 1.0, "name": "fidelity", "observed": 1.0, "status": "passed", "tolerance": 1e-10},
-    {"detail": "no shots requested - exact probabilities only", "name": "shot_consistency", "status": "passed"}
+    {
+      "detail": "dim=2",
+      "name": "dimension",
+      "status": "passed"
+    },
+    {
+      "detail": "all amplitudes finite",
+      "name": "finite",
+      "status": "passed"
+    },
+    {
+      "detail": "normalized (norm=1.000000e+00)",
+      "name": "normalization",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "amplitudes match within tolerance (global-phase invariant)",
+      "name": "amplitudes",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "probabilities match within tolerance",
+      "name": "probabilities",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "F=1.000000000000",
+      "expected": 1.0,
+      "name": "fidelity",
+      "observed": 1.0,
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "no shots requested - exact probabilities only",
+      "name": "shot_consistency",
+      "status": "passed"
+    }
   ],
   "circuit": {
     "depth": 2,
     "gate_count": 2,
     "n_qubits": 1,
-    "spec": [{"gate": "X", "qubits": [0]}, {"gate": "Z", "qubits": [0]}]
+    "spec": [
+      {
+        "gate": "X",
+        "qubits": [
+          0
+        ]
+      },
+      {
+        "gate": "Z",
+        "qubits": [
+          0
+        ]
+      }
+    ]
   },
   "claim": "X; Z on |0\u27e9 yields amplitudes [0, \u22121].",
   "description": "Apply X then Z to |0\u27e9; result is \u2212|1\u27e9.",
@@ -35,20 +82,50 @@
     "input_hash": "sha256:1bc7e9f418588b9f0f2633c004d280072e942959bc70dae8e32fdc6e7ae579fb",
     "report_hash": "sha256:f36b5f4421261f7256fe22ad00f1f8cd2e0f22cee0feeef63ee0ed80637d14c0"
   },
-  "limitations": ["Classical simulation only."],
+  "limitations": [
+    "Classical simulation only."
+  ],
   "results": {
-    "expected_amplitudes": [[0.0, 0.0], [-1.0, 0.0]],
-    "expected_probabilities": [0.0, 1.0],
+    "expected_amplitudes": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -1.0,
+        0.0
+      ]
+    ],
+    "expected_probabilities": [
+      0.0,
+      1.0
+    ],
     "fidelity": 1.0,
     "measurement_counts": {},
-    "observed_amplitudes": [[0.0, 0.0], [-1.0, 0.0]],
-    "observed_probabilities": [0.0, 1.0]
+    "observed_amplitudes": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -1.0,
+        0.0
+      ]
+    ],
+    "observed_probabilities": [
+      0.0,
+      1.0
+    ]
   },
   "schema_version": "1.1.0",
   "status": "passed",
   "verification": {
     "reference_id": "analytic/phase-v1",
     "simulator_id": "qproof/0.2.0",
-    "tolerances": {"amplitude": 1e-10, "fidelity": 1e-10, "probability": 1e-10}
+    "tolerances": {
+      "amplitude": 1e-10,
+      "fidelity": 1e-10,
+      "probability": 1e-10
+    }
   }
 }
