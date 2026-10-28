@@ -28,6 +28,7 @@ qproof capabilities
 qproof run hadamard --out report.json
 qproof verify-evidence report.json
 qproof run-json experiment.json
+qproof campaign --seed 42 --out artifacts/campaign
 ```
 
 ## Supported gates (tested)
@@ -57,6 +58,18 @@ a fabricated PASS.
 node web/test_oracle.mjs
 ```
 
+## Adversarial verification campaign
+
+Seeded Level-1 campaign: independent oracle vs production simulator, documented
+fault injection, detection metrics. Does **not** certify hardware or claim quantum advantage.
+
+```bash
+qproof campaign --seed 42 --out artifacts/campaign
+pytest tests/test_campaign.py -q
+```
+
+See [docs/ADVERSARIAL_CAMPAIGN.md](docs/ADVERSARIAL_CAMPAIGN.md).
+
 ## Evidence integrity
 
 - Canonical hash: `json.dumps(..., sort_keys=True, separators=(',', ':'))` then SHA-256.
@@ -70,6 +83,7 @@ node web/test_oracle.mjs
 pytest -q
 node web/test_simulator.mjs
 node web/test_oracle.mjs
+qproof campaign --seed 42
 ```
 
 ## License
