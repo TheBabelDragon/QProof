@@ -78,6 +78,11 @@ except ImportError:  # pragma: no cover
     run_randomized_suite = run_negative_controls = run_full_suite = None  # type: ignore
     VERIFIER_VERSION = None  # type: ignore
 
+try:
+    from .campaign import CAMPAIGN_ENGINE_ID, run_campaign
+except ImportError:  # pragma: no cover
+    CAMPAIGN_ENGINE_ID = run_campaign = None  # type: ignore
+
 __all__ = [
     "__version__",
     "__software_id__",
@@ -137,4 +142,6 @@ __all__ = [
     "run_negative_controls",
     "run_full_suite",
     "VERIFIER_VERSION",
+    "run_campaign",
+    "CAMPAIGN_ENGINE_ID",
 ]
