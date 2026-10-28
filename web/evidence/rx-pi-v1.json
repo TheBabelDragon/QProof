@@ -14,8 +14,8 @@
     "n_qubits": 1,
     "spec": [{"gate": "RX", "qubits": [0], "theta": 3.141592653589793}]
   },
-  "claim": "RX(\u03c0) on |0\u27e9 matches analytic -i|1\u27e9 (up to global phase for amplitude checks).",
-  "description": "Apply RX(\u03c0) to |0\u27e9.",
+  "claim": "Classical simulation of RX(\u03c0) on |0\u27e9 matches analytic \u2212i|1\u27e9 (fidelity to |1\u27e9 is 1 under phase-invariant definition).",
+  "description": "Apply RX(\u03c0) to |0\u27e9; expect \u2212i|1\u27e9.",
   "environment": {
     "numpy": "2.4.4",
     "platform": "Linux-6.12.8+-x86_64-with-glibc2.39",
@@ -24,25 +24,28 @@
   },
   "execution": {
     "mode": "classical_statevector",
-    "runtime_ms": 0.12,
+    "runtime_ms": 0.21,
     "seed": null,
     "shots": 0
   },
   "experiment_id": "rx-pi-v1",
   "integrity": {
     "canonicalization": "qproof-canonical-v1",
-    "circuit_hash": "sha256:placeholder",
-    "input_hash": "sha256:placeholder",
-    "report_hash": "sha256:87fdad77a900b5ad7"
+    "circuit_hash": "sha256:2c17d6f8c9695aca7d36e531cf34b35f20669fc527efe871170f15c12f5504c5",
+    "input_hash": "sha256:e87b0b93e5f736869c494b81ce0eca8d98f4c9ad48682cc1fc462d987a3809e4",
+    "report_hash": "sha256:87fdad77a900b5ad7bb76945d3c84f1bec2d9d3ffd4563b79caa2b33c79fbcdd"
   },
-  "limitations": ["Classical simulation only."],
+  "limitations": [
+    "Classical simulation only.",
+    "Parameterized rotation fixture."
+  ],
   "results": {
-    "expected_amplitudes": [[0.0, 0.0], [0.0, -1.0]],
+    "expected_amplitudes": [[0.0, 0.0], [-0.0, -1.0]],
     "expected_probabilities": [0.0, 1.0],
     "fidelity": 1.0,
     "measurement_counts": {},
-    "observed_amplitudes": [[0.0, 0.0], [0.0, -1.0]],
-    "observed_probabilities": [0.0, 1.0]
+    "observed_amplitudes": [[6.123233995736766e-17, 0.0], [0.0, -1.0]],
+    "observed_probabilities": [3.749399456654644e-33, 1.0]
   },
   "schema_version": "1.1.0",
   "status": "passed",
