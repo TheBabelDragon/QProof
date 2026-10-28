@@ -167,11 +167,14 @@ def main(argv=None) -> int:
             print(json.dumps(report, indent=2, sort_keys=True))
         else:
             print(json.dumps(summary, indent=2, sort_keys=True))
-        ok = (
-            report["acceptance"].get("detection_rate_ok")
-            and report["acceptance"].get("clean_ok")
-            and report["acceptance"].get("no_false_alarms_on_identity")
-        )
+        acc = report.get("acceptance") or {}
+        ok = acc.get("overall_ok")
+        if ok is None:
+            ok = (
+                acc.get("detection_rate_ok")
+                and acc.get("clean_ok")
+                and acc.get("no_false_alarms_on_identity")
+            )
         return 0 if ok else 1
 
     return 0
