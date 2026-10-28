@@ -20,6 +20,8 @@ jobs:
         run: pytest -q
       - name: Browser simulator unit tests
         run: node web/test_simulator.mjs
+      - name: Independent browser oracle tests
+        run: node web/test_oracle.mjs
       - name: Generate capabilities artifact
         run: |
           qproof capabilities > web/capabilities.json
