@@ -28,6 +28,7 @@ qproof capabilities
 qproof run hadamard --out report.json
 qproof verify-evidence report.json
 qproof run-json experiment.json
+qproof verify-suite --seed 42
 ```
 
 ## Supported gates (tested)
@@ -42,8 +43,23 @@ Little-endian qubit 0 = LSB. Python max 20 qubits; browser max **12**.
 | Experiment Lab | Blank-first circuit editor, live browser execution, amplitudes & shots |
 | Claim Verification | Reference-based scientific checks (passed / failed / inconclusive) |
 | Evidence Inspector | Import, integrity, tamper test, export |
+| Oracle Suite | Independent golden + differential checks vs browser oracle |
 
 Fixtures (Bell, H, …) are **optional templates**, not architectural special cases.
+
+## Independent oracle verification
+
+QProof includes an **independent reference engine** (`qproof.oracle`), analytical
+golden circuits, differential testing, negative controls, and evidence-backed
+verdicts (PASS / FAIL / INCONCLUSIVE / NOT_APPLICABLE / ERROR).
+
+Missing independent references never produce PASS. See
+[docs/verification_guide.md](docs/verification_guide.md).
+
+```bash
+PYTHONPATH=. python -m qproof.cli verify-suite --seed 42
+PYTHONPATH=. python -m pytest tests/test_oracle_verifier.py -q
+```
 
 ## Evidence integrity
 
