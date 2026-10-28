@@ -50,18 +50,33 @@ from .circuit_spec import (
 from .registry import get_experiment, list_experiments, experiment_from_spec
 from .evidence import validate_evidence_structure, verify_report_integrity
 
-from .oracle import ORACLE_ID, ORACLE_VERSION, run_oracle, supported_gates
-from .golden import GOLDEN_CORPUS_VERSION, list_goldens, get_golden, corpus_public
-from .verdict import CheckStatus, MetricResult, SuiteVerdict, aggregate_verdict
-from .verifier import (
-    verify_golden,
-    verify_all_goldens,
-    verify_differential,
-    run_randomized_suite,
-    run_negative_controls,
-    run_full_suite,
-    VERIFIER_VERSION,
-)
+try:
+    from .oracle import ORACLE_ID, ORACLE_VERSION, run_oracle, supported_gates
+    from .verdict import CheckStatus, MetricResult, SuiteVerdict, aggregate_verdict
+except ImportError:  # pragma: no cover - partial checkout
+    ORACLE_ID = ORACLE_VERSION = None  # type: ignore
+    run_oracle = supported_gates = None  # type: ignore
+    CheckStatus = MetricResult = SuiteVerdict = aggregate_verdict = None  # type: ignore
+
+try:
+    from .golden import GOLDEN_CORPUS_VERSION, list_goldens, get_golden, corpus_public
+except ImportError:  # pragma: no cover
+    GOLDEN_CORPUS_VERSION = list_goldens = get_golden = corpus_public = None  # type: ignore
+
+try:
+    from .verifier import (
+        verify_golden,
+        verify_all_goldens,
+        verify_differential,
+        run_randomized_suite,
+        run_negative_controls,
+        run_full_suite,
+        VERIFIER_VERSION,
+    )
+except ImportError:  # pragma: no cover
+    verify_golden = verify_all_goldens = verify_differential = None  # type: ignore
+    run_randomized_suite = run_negative_controls = run_full_suite = None  # type: ignore
+    VERIFIER_VERSION = None  # type: ignore
 
 __all__ = [
     "__version__",
