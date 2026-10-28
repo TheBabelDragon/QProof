@@ -1,39 +1,57 @@
 {
-  "schema_version": "1.0.0",
-  "experiment_id": "hadamard-v1",
-  "description": "Apply H to |0⟩; expect (|0⟩+|1⟩)/√2.",
-  "claim": "Classical simulation of H on |0⟩ matches the analytic superposition (|0⟩+|1⟩)/√2 under little-endian ordering.",
-  "status": "passed",
   "checks": [
-    {"name": "dimension", "status": "passed", "detail": "dim=2"},
-    {"name": "finite", "status": "passed", "detail": "all amplitudes finite"},
-    {"name": "normalization", "status": "passed", "detail": "normalized (norm=1.000000e+00)", "tolerance": 1e-10},
-    {"name": "amplitudes", "status": "passed", "detail": "amplitudes match within tolerance (global-phase invariant)", "tolerance": 1e-10},
-    {"name": "probabilities", "status": "passed", "detail": "probabilities match within tolerance", "tolerance": 1e-10},
-    {"name": "fidelity", "status": "passed", "detail": "F=1.000000000000", "observed": 1.0, "expected": 1.0, "tolerance": 1e-10},
-    {"name": "shot_consistency", "status": "passed", "detail": "no shots requested — exact probabilities only"}
+    {"detail": "dim=2", "name": "dimension", "status": "passed"},
+    {"detail": "all amplitudes finite", "name": "finite", "status": "passed"},
+    {"detail": "normalized (norm=1.000000e+00)", "name": "normalization", "status": "passed", "tolerance": 1e-10},
+    {"detail": "amplitudes match within tolerance (global-phase invariant)", "name": "amplitudes", "status": "passed", "tolerance": 1e-10},
+    {"detail": "probabilities match within tolerance", "name": "probabilities", "status": "passed", "tolerance": 1e-10},
+    {"detail": "F=1.000000000000", "expected": 1.0, "name": "fidelity", "observed": 0.9999999999999996, "status": "passed", "tolerance": 1e-10},
+    {"detail": "no shots requested - exact probabilities only", "name": "shot_consistency", "status": "passed"}
   ],
   "circuit": {
-    "n_qubits": 1,
-    "gate_count": 1,
     "depth": 1,
+    "gate_count": 1,
+    "n_qubits": 1,
     "spec": [{"gate": "H", "qubits": [0]}]
   },
-  "execution": {"shots": 0, "seed": null, "mode": "classical_statevector", "runtime_ms": 0.5},
+  "claim": "Classical simulation of H on |0\u27e9 matches the analytic superposition (|0\u27e9+|1\u27e9)/\u221a2 under little-endian ordering.",
+  "description": "Apply H to |0\u27e9; expect (|0\u27e9+|1\u27e9)/\u221a2.",
+  "environment": {
+    "numpy": "2.4.4",
+    "platform": "Linux-6.12.8+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "qproof": "0.2.0"
+  },
+  "execution": {
+    "mode": "classical_statevector",
+    "runtime_ms": 0.129,
+    "seed": null,
+    "shots": 0
+  },
+  "experiment_id": "hadamard-v1",
+  "integrity": {
+    "canonicalization": "qproof-canonical-v1",
+    "circuit_hash": "sha256:0990c32b993305ade036748c504031d52fbbe39ab15568dd46c8a07a639721a2",
+    "input_hash": "sha256:790085206a314918f7faaa2a1afeed70fad0db72f85c03438981b95468339b48",
+    "report_hash": "sha256:0704a315aeb35c81e72900364b59ed3bee046e07389f95f8a7a44676413faa09"
+  },
+  "limitations": [
+    "Classical simulation only.",
+    "Single-qubit analytic fixture \u2014 not a capability boundary."
+  ],
   "results": {
-    "observed_amplitudes": [[0.7071067811865475, 0.0], [0.7071067811865475, 0.0]],
-    "observed_probabilities": [0.5, 0.5],
     "expected_amplitudes": [[0.7071067811865475, 0.0], [0.7071067811865475, 0.0]],
-    "expected_probabilities": [0.5, 0.5],
-    "fidelity": 1.0,
-    "measurement_counts": {}
+    "expected_probabilities": [0.4999999999999999, 0.4999999999999999],
+    "fidelity": 0.9999999999999996,
+    "measurement_counts": {},
+    "observed_amplitudes": [[0.7071067811865475, 0.0], [0.7071067811865475, 0.0]],
+    "observed_probabilities": [0.4999999999999999, 0.4999999999999999]
   },
+  "schema_version": "1.1.0",
+  "status": "passed",
   "verification": {
-    "simulator_id": "qproof/0.2.0",
     "reference_id": "analytic/hadamard-v1",
-    "tolerances": {"amplitude": 1e-10, "probability": 1e-10, "fidelity": 1e-10}
-  },
-  "environment": {"python": "3.12", "platform": "ci", "numpy": ">=1.22", "qproof": "0.2.0"},
-  "limitations": ["Classical simulation only.", "Single-qubit analytic fixture — not a capability boundary."],
-  "integrity": {"input_hash": null, "report_hash": null}
+    "simulator_id": "qproof/0.2.0",
+    "tolerances": {"amplitude": 1e-10, "fidelity": 1e-10, "probability": 1e-10}
+  }
 }
