@@ -1,50 +1,157 @@
 {
   "checks": [
-    {"detail": "dim=4", "name": "dimension", "status": "passed"},
-    {"detail": "all amplitudes finite", "name": "finite", "status": "passed"},
-    {"detail": "normalized (norm=1.000000e+00)", "name": "normalization", "status": "passed", "tolerance": 1e-10},
-    {"detail": "amplitudes match within tolerance (global-phase invariant)", "name": "amplitudes", "status": "passed", "tolerance": 1e-10},
-    {"detail": "probabilities match within tolerance", "name": "probabilities", "status": "passed", "tolerance": 1e-10},
-    {"detail": "F=1.000000000000", "expected": 1.0, "name": "fidelity", "observed": 0.9999999999999996, "status": "passed", "tolerance": 1e-10},
-    {"detail": "shot counts consistent (z ≤ 5.0)", "name": "shot_consistency", "status": "passed"}
+    {
+      "detail": "dim=4",
+      "name": "dimension",
+      "status": "passed"
+    },
+    {
+      "detail": "all amplitudes finite",
+      "name": "finite",
+      "status": "passed"
+    },
+    {
+      "detail": "normalized (norm=1.000000e+00)",
+      "name": "normalization",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "amplitudes match within tolerance (global-phase invariant)",
+      "name": "amplitudes",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "probabilities match within tolerance",
+      "name": "probabilities",
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "F=1.000000000000",
+      "expected": 1.0,
+      "name": "fidelity",
+      "observed": 0.9999999999999996,
+      "status": "passed",
+      "tolerance": 1e-10
+    },
+    {
+      "detail": "shot counts consistent (z \u2264 5.0)",
+      "name": "shot_consistency",
+      "status": "passed"
+    }
   ],
   "circuit": {
     "depth": 2,
     "gate_count": 2,
     "n_qubits": 2,
     "spec": [
-      {"gate": "H", "qubits": [0]},
-      {"gate": "CNOT", "qubits": [0, 1]}
+      {
+        "gate": "H",
+        "qubits": [
+          0
+        ]
+      },
+      {
+        "gate": "CNOT",
+        "qubits": [
+          0,
+          1
+        ]
+      }
     ]
   },
-  "claim": "The classical state-vector simulation of H(0); CNOT(0,1) on |00⟩ produces amplitudes and probabilities matching the analytic Bell state (|00⟩ + |11⟩)/√2 under little-endian qubit ordering. This demonstrates correctness of the modelled circuit, not quantum computational advantage.",
-  "description": "Prepare the Bell state (|00⟩ + |11⟩)/√2 via H(0); CNOT(0,1) and verify against an independent analytic reference.",
-  "environment": {"numpy": ">=1.22", "platform": "ci", "python": "3.12", "qproof": "0.1.0"},
-  "execution": {"mode": "classical_statevector", "runtime_ms": 9.017, "seed": 42, "shots": 1024},
+  "claim": "The classical state-vector simulation of H(0); CNOT(0,1) on |00\u27e9 produces amplitudes and probabilities matching the analytic Bell state (|00\u27e9 + |11\u27e9)/\u221a2 under little-endian qubit ordering.",
+  "description": "Prepare the Bell state (|00\u27e9 + |11\u27e9)/\u221a2 via H(0); CNOT(0,1) and verify against an independent analytic reference.",
+  "environment": {
+    "numpy": "2.4.4",
+    "platform": "Linux-6.12.8+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "qproof": "0.2.0"
+  },
+  "execution": {
+    "mode": "classical_statevector",
+    "runtime_ms": 10.443,
+    "seed": 42,
+    "shots": 1024
+  },
   "experiment_id": "bell-state-v1",
   "integrity": {
+    "canonicalization": "qproof-canonical-v1",
+    "circuit_hash": "sha256:82fda97396ccb4a0dc4e75ef93433c1c673dc5b50839e27dc0be30c708009847",
     "input_hash": "sha256:c918772d1298a3d6f8293098bfe5d7842318025f107dc7b5b9763c98a0ada6c6",
-    "report_hash": "sha256:ef56e5a8fa795390aad92ab4bd1e4ffe3da75e2d0e9448eb3e35eebc4802bd95"
+    "report_hash": "sha256:7c51972a141c02a40dbd38f2aa60498d061acde5b6a01c483187d65ed26027a7"
   },
   "limitations": [
-    "Classical state-vector simulation only — no quantum hardware.",
-    "No noise model; ideal gates assumed.",
+    "Classical state-vector simulation only - no quantum hardware.",
     "Does not demonstrate quantum advantage.",
-    "Shot statistics are a consistency check, not a formal hypothesis test."
+    "Fixture for smoke/onboarding - not the capability boundary."
   ],
   "results": {
-    "expected_amplitudes": [[0.7071067811865475, 0.0], [0.0, 0.0], [0.0, 0.0], [0.7071067811865475, 0.0]],
-    "expected_probabilities": [0.4999999999999999, 0.0, 0.0, 0.4999999999999999],
+    "expected_amplitudes": [
+      [
+        0.7071067811865475,
+        0.0
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.7071067811865475,
+        0.0
+      ]
+    ],
+    "expected_probabilities": [
+      0.4999999999999999,
+      0.0,
+      0.0,
+      0.4999999999999999
+    ],
     "fidelity": 0.9999999999999996,
-    "measurement_counts": {"00": 515, "11": 509},
-    "observed_amplitudes": [[0.7071067811865475, 0.0], [0.0, 0.0], [0.0, 0.0], [0.7071067811865475, 0.0]],
-    "observed_probabilities": [0.4999999999999999, 0.0, 0.0, 0.4999999999999999]
+    "measurement_counts": {
+      "00": 515,
+      "11": 509
+    },
+    "observed_amplitudes": [
+      [
+        0.7071067811865475,
+        0.0
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.7071067811865475,
+        0.0
+      ]
+    ],
+    "observed_probabilities": [
+      0.4999999999999999,
+      0.0,
+      0.0,
+      0.4999999999999999
+    ]
   },
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "status": "passed",
   "verification": {
     "reference_id": "analytic/bell-v1",
-    "simulator_id": "qproof/0.1.0",
-    "tolerances": {"amplitude": 1e-10, "fidelity": 1e-10, "probability": 1e-10}
+    "simulator_id": "qproof/0.2.0",
+    "tolerances": {
+      "amplitude": 1e-10,
+      "fidelity": 1e-10,
+      "probability": 1e-10
+    }
   }
 }
